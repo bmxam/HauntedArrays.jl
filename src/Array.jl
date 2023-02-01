@@ -1,0 +1,1 @@
+abstract type AbstractHauntedArray{T,N} <: AbstractArray{T,N} end
