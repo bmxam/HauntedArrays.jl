@@ -12,5 +12,7 @@ include("./Array.jl")
 include("./Vector.jl")
 export HauntedVector, enable_ghosts, disable_ghosts
 
+include("./reductions.jl")
+
 
 end

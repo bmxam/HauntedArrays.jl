@@ -10,6 +10,8 @@ struct MPIExchanger <: AbstractExchanger
     toberecv_part2lid::Dict{Int,Vector{Int}} # to be recv from others : part => lid
 end
 
+@inline get_comm(exchanger::MPIExchanger) = exchanger.comm
+
 
 function MPIExchanger(comm::MPI.Comm, lid2gid, lid2part)
     #islid = convert(Vector{Bool}, lid2part .== mypart) # without `convert`, a `BitVector` is obtained
@@ -51,7 +53,8 @@ function update_ghosts!(array::AbstractVector, exchanger::MPIExchanger)
     # Buffers
     T = eltype(array) # same type for all variables for now...
     tobesent_buffers = Dict(ipart => array[lids] for (ipart, lids) in tobesent_part2lid)
-    toberecv_buffers = Dict(ipart => zeros(T, length(lids)) for (ipart, lids) in toberecv_part2lid)
+    toberecv_buffers =
+        Dict(ipart => zeros(T, length(lids)) for (ipart, lids) in toberecv_part2lid)
 
     # Receive
     recv_reqs = MPI.Request[]
