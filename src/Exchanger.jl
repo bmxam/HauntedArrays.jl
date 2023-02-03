@@ -4,40 +4,46 @@ abstract type AbstractExchanger end
 * `lid` stands for "local index" or "local identifier", meaning "on the current partition"
 * `gid` stands for "global index" or "global identifier", meaning "all ranks merged"
 """
-struct MPIExchanger <: AbstractExchanger
+struct MPIExchanger{N} <: AbstractExchanger where {N}
     comm::MPI.Comm
-    tobesent_part2lid::Dict{Int,Vector{Int}} # to be sent to others : part => lid
-    toberecv_part2lid::Dict{Int,Vector{Int}} # to be recv from others : part => lid
+    tobesent_part2lid::Dict{Int,Vector{CartesianIndex{N}}} # to be sent to others : part => lid
+    toberecv_part2lid::Dict{Int,Vector{CartesianIndex{N}}} # to be recv from others : part => lid
 end
 
 @inline get_comm(exchanger::MPIExchanger) = exchanger.comm
 
-
-function MPIExchanger(comm::MPI.Comm, lid2gid, lid2part)
-    #islid = convert(Vector{Bool}, lid2part .== mypart) # without `convert`, a `BitVector` is obtained
-
+function MPIExchanger(
+    comm::MPI.Comm,
+    lid2gid::Array{CartesianIndex{N},N},
+    lid2part::Array{Int,N},
+) where {N}
     # Create two dicts with gid
-    tobesent_part2gid, toberecv_part2gid = set_up_ghosts_comm(lid2gid, lid2part, comm)
+    tobesent_part2gid, toberecv_part2gid = set_up_ghosts_comm(comm, lid2gid, lid2part)
 
     # lid2gid --> gid2lid
-    gid2lid = Dict{Int,Int}()
+    # gid2lid = Dict{Int,Int}()
+    gid2lid = Dict()
     for (li, gi) in enumerate(lid2gid)
         gid2lid[gi] = li
     end
 
     # Convert the dicts with lid
-    tobesent_part2lid = Dict{Int,Vector{Int}}()
+    tobesent_part2lid = Dict{Int,Vector{CartesianIndex{N}}}()
     for (ipart, gids) in tobesent_part2gid
-        tobesent_part2lid[ipart] = [gid2lid[gi] for gi in gids]
+        tobesent_part2lid[ipart] = [CartesianIndex(Tuple(gid2lid[gi])) for gi in gids] # need `CartesianIndex(Tuple)` for scalar case
     end
 
-    toberecv_part2lid = Dict{Int,Vector{Int}}()
+    toberecv_part2lid = Dict{Int,Vector{CartesianIndex{N}}}()
     for (ipart, gids) in toberecv_part2gid
-        toberecv_part2lid[ipart] = [gid2lid[gi] for gi in gids]
+        toberecv_part2lid[ipart] = [CartesianIndex(Tuple(gid2lid[gi])) for gi in gids] # need `CartesianIndex(Tuple)` for scalar case
     end
 
     return MPIExchanger(comm, tobesent_part2lid, toberecv_part2lid)
 end
+
+# function MPIExchanger(comm::MPI.Comm, lid2gid, lid2part)
+#     MPIExchanger(comm, map(x -> CartesianIndex(x...), lid2gid), lid2part)
+# end
 
 """
 Synchronize ghost values using MPI communications.

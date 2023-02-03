@@ -9,10 +9,13 @@ include("./Exchanger.jl")
 export update_ghosts!
 
 include("./Array.jl")
-include("./Vector.jl")
-export HauntedVector, enable_ghosts, disable_ghosts
+export HauntedArray, HauntedVector
 
-include("./reductions.jl")
+# include("./Vector.jl")
+# export HauntedVector, enable_ghosts, disable_ghosts
+
+include("./interface.jl")
+# include("./reductions.jl")
 
 
 end

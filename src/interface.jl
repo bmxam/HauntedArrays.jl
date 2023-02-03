@@ -1,0 +1,1 @@
+Base.parent(A::HauntedArray) = A.array
