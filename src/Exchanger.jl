@@ -3,20 +3,22 @@ abstract type AbstractExchanger end
 """
 * `lid` stands for "local index" or "local identifier", meaning "on the current partition"
 * `gid` stands for "global index" or "global identifier", meaning "all ranks merged"
+
+`I` maybe be `CartesianIndex` for N > 1, or `Int` for vectors
 """
-struct MPIExchanger{N} <: AbstractExchanger where {N}
+struct MPIExchanger{I} <: AbstractExchanger where {I}
     comm::MPI.Comm
-    tobesent_part2lid::Dict{Int,Vector{CartesianIndex{N}}} # to be sent to others : part => lid
-    toberecv_part2lid::Dict{Int,Vector{CartesianIndex{N}}} # to be recv from others : part => lid
+    tobesent_part2lid::Dict{Int,Vector{I}} # to be sent to others : part => lid
+    toberecv_part2lid::Dict{Int,Vector{I}} # to be recv from others : part => lid
 end
 
 @inline get_comm(exchanger::MPIExchanger) = exchanger.comm
 
 function MPIExchanger(
     comm::MPI.Comm,
-    lid2gid::Array{CartesianIndex{N},N},
+    lid2gid::Array{I,N},
     lid2part::Array{Int,N},
-) where {N}
+) where {N,I}
     # Create two dicts with gid
     tobesent_part2gid, toberecv_part2gid = set_up_ghosts_comm(comm, lid2gid, lid2part)
 
@@ -38,12 +40,8 @@ function MPIExchanger(
         toberecv_part2lid[ipart] = [CartesianIndex(Tuple(gid2lid[gi])) for gi in gids] # need `CartesianIndex(Tuple)` for scalar case
     end
 
-    return MPIExchanger(comm, tobesent_part2lid, toberecv_part2lid)
+    return MPIExchanger{I}(comm, tobesent_part2lid, toberecv_part2lid)
 end
-
-# function MPIExchanger(comm::MPI.Comm, lid2gid, lid2part)
-#     MPIExchanger(comm, map(x -> CartesianIndex(x...), lid2gid), lid2part)
-# end
 
 """
 Synchronize ghost values using MPI communications.

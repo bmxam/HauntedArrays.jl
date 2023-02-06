@@ -44,17 +44,17 @@ WARNING :
 
 function set_up_ghosts_comm(
     comm::MPI.Comm,
-    lid2gid::Array{CartesianIndex{N},N},
+    lid2gid::Array{I,N},
     lid2part::Array{Int,N},
-) where {N}
+) where {I,N}
     my_part = MPI.Comm_rank(comm) + 1
 
     # Filter to obtain only ghost-index -> part
-    ghid2part = Dict{CartesianIndex{N},Int}()
+    ghid2part = Dict{I,Int}()
     for li in eachindex(CartesianIndices(lid2part))
         ipart = lid2part[li]
         if ipart != my_part
-            ghid2part[CartesianIndex(Tuple(li))] = ipart # need CartesianIndex(Tuple) for scalar case
+            ghid2part[li] = ipart # need CartesianIndex(Tuple) for scalar case
         end
     end
     ghost_parts = unique(values(ghid2part))
@@ -72,13 +72,11 @@ function set_up_ghosts_comm(
     #@one_at_a_time (@show toberecv_part2ndofs)
 
     # Prepare buffers
-    tobesent_part2gid = Dict{Int,Vector{CartesianIndex{N}}}(
-        ipart => zeros(CartesianIndex{N}, tobesent_part2ndofs[ipart]) for
-        ipart in src_parts
+    tobesent_part2gid = Dict{Int,Vector{I}}(
+        ipart => zeros(I, tobesent_part2ndofs[ipart]) for ipart in src_parts
     )
-    toberecv_part2gid = Dict{Int,Vector{CartesianIndex{N}}}(
-        ipart => zeros(CartesianIndex{N}, toberecv_part2ndofs[ipart]) for
-        ipart in ghost_parts
+    toberecv_part2gid = Dict{Int,Vector{I}}(
+        ipart => zeros(I, toberecv_part2ndofs[ipart]) for ipart in ghost_parts
     )
 
     # Find iglobs to send to each partition
@@ -147,11 +145,11 @@ Count the number of elts that each `src` partition will send to the local partit
 necessitates in return for the local partition to send this info to `dest` partitions.
 """
 function _identify_src_ndofs(
-    destdof2part::Dict,
+    destdof2part::Dict{I,Int},
     dest_parts::Vector{Int},
     src_parts::Vector{Int},
     comm::MPI.Comm,
-)
+) where {I}
     # Get the number of elts that will be sent to local partition by each src partition
     recv_reqs = MPI.Request[]
     n_src_dofs = [[0] for _ in src_parts] # need a Vector{Vector{Int}} because MPI.Irecv! can't handle an Int but only Vector{Int}
@@ -186,10 +184,10 @@ Identify local ids that are asked by `src` partitions
 Return, for each `src` partition, the local ids asked by the remote partition
 """
 function _identify_asked_gids!(
-    toberecv_part2gids::Dict{Int,Vector{CartesianIndex{N}}},
-    tobesent_part2gids::Dict{Int,Vector{CartesianIndex{N}}},
+    toberecv_part2gids::Dict{Int,Vector{I}},
+    tobesent_part2gids::Dict{Int,Vector{I}},
     comm::MPI.Comm,
-) where {N}
+) where {N,I}
     # Receive asked elts ids
     # we want to identify which dof we will be sending to `src` partitions, so the buffer is name "to be sent"
     send_reqs = MPI.Request[]

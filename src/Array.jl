@@ -1,12 +1,14 @@
 abstract type AbstractHauntedArray{T,N} <: AbstractArray{T,N} end
 
 """
+`I` maybe be `CartesianIndex` for N > 1, or `Int` for vectors
+
 # Dev notes
 Storing `lid2gid` as `Array{CartesianIndex{N},N}` is a bit stupid since in practice the numering
 is cartesian, hence we only need to store the global number of rows (and cols) and any element
 can then be obtained combining these two infos.
 """
-struct HauntedArray{T,N,E} <: AbstractHauntedArray{T,N} where {E<:AbstractExchanger}
+struct HauntedArray{T,N,E,I} <: AbstractHauntedArray{T,N} where {E<:AbstractExchanger}
     # The complete array on the current rank, including ghosts
     array::Array{T,N}
 
@@ -17,28 +19,29 @@ struct HauntedArray{T,N,E} <: AbstractHauntedArray{T,N} where {E<:AbstractExchan
     exchanger::E
 
     # Local to global index
-    lid2gid::Array{CartesianIndex{N},N}
+    lid2gid::Array{I,N}
 
     # Element indices, in `array`, that are owned by this rank -> `parentindices(ownedValues)`
-    oids::Vector{CartesianIndex{N}}
+    oids::Vector{I}
 
     # Element indices, in `array`, that are ghosts
-    ghids::Vector{CartesianIndex{N}}
+    ghids::Vector{I}
 
     HauntedArray(a::AbstractArray{T,N}, o, ex, l2g, oids, ghids) where {T,N} =
-        HauntedArray{T,N,typeof(ex)}(a, o, ex, l2g, oids, ghids)
+        new{T,N,typeof(ex),eltype(l2g)}(a, o, ex, l2g, oids, ghids)
 end
 
 @inline get_exchanger(A::HauntedArray) = A.exchanger
 @inline get_comm(A::HauntedArray) = get_comm(get_exchanger(A))
+@inline owned_values(A::HauntedArray) = A.ownedValues
 
 
 function HauntedArray(
     comm::MPI.Comm,
-    lid2gid::Array{CartesianIndex{N},N},
+    lid2gid::Array{I,N},
     lid2part::Array{Int,N},
     T = Float64,
-) where {N}
+) where {I,N}
     exchanger = MPIExchanger(comm, lid2gid, lid2part)
 
     # Array with ghosts
@@ -53,6 +56,4 @@ function HauntedArray(
     return HauntedArray(array, ownedValues, exchanger, lid2gid, oids, ghids)
 end
 
-function HauntedVector(comm::MPI.Comm, lid2gid, lid2part, T = Float64)
-    HauntedArray(comm, map(x -> CartesianIndex(x...), lid2gid), lid2part, T)
-end
+# const HauntedVector = HauntedArray

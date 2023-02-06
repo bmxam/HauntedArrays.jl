@@ -1,11 +1,40 @@
 module LinearTransport
 using MPI
 using HauntedArrays
-using DifferentialEquations
+using OrdinaryDiffEq
+using DiffEqBase
+using LinearAlgebra
 
 const lx = 1.0
-const nx = 5 # on each process
+const nx = 3 # on each process
 const c = 1.0
+
+# LinearAlgebra.norm(A::HauntedArray{T,1}, p::Real = 2) where {T} = mynorm(A, p)
+# LinearAlgebra.norm(A::HauntedArray{T,1}, p::Real = 2) where {T} = mynorm(A, p)
+
+mynorm(A, p::Real = 2) = LinearAlgebra.norm(A, p)
+
+function mynorm(A::HauntedArray{T,1}, p::Real = 2) where {T}
+    @assert p == 2 "p # 2 : p = $p"
+    a = owned_values(A)
+    xlocal = sum(a .* a)
+    println("hello")
+    res = MPI.Allreduce(xlocal, MPI.SUM, get_comm(A))
+    return √(res)
+end
+
+Base.maximum(A::HauntedArray) = error("not supported")
+Base.minimum(A::HauntedArray) = error("not supported")
+Base.extrema(A::HauntedArray) = error("not supported")
+Base.similar(A::HauntedArray, dims::Dims) = error("not supported")
+Base.similar(A::HauntedArray, ::Type{S}, dims::Dims) where {S} = error("not supported")
+
+function DiffEqBase.recursive_length(A::HauntedArray{T,1}) where {T}
+    xlocal = length(owned_values(A))
+    MPI.Allreduce(xlocal, MPI.SUM, get_comm(A))
+end
+
+
 
 MPI.Init()
 
@@ -30,27 +59,19 @@ end
 @one_at_a_time @show lid2part
 
 # Allocate
-q = HauntedVector(comm, lid2gid, lid2part)
-dq = HauntedVector(comm, lid2gid, lid2part)
+q = HauntedArray(comm, lid2gid, lid2part)
+dq = HauntedArray(comm, lid2gid, lid2part)
 p = (c = c, Δx = Δx)
 
 # Init
-enable_ghosts(q)
 (mypart == 1) && (q[1] = 1.0)
 
 function f!(dq, q, p, t)
-    @one_at_a_time println("proc $rank is waiting at Barrier 7")
-    MPI.Barrier(comm)
 
     update_ghosts!(q)
-    enable_ghosts.((dq, q))
     for i = 2:length(q)
         dq[i] = -c / p.Δx * (q[i] - q[i-1])
     end
-    disable_ghosts.((dq, q))
-
-    @one_at_a_time println("proc $rank is waiting at Barrier 8")
-    MPI.Barrier(comm)
 end
 
 # Explicit time integration
@@ -65,21 +86,21 @@ end
 
 # Diffeq
 if true
-    disable_ghosts(q) # mandatory ! (don't know why though...)
-    tspan = (0.0, 1.0)
+    tspan = (0.0, 2.0)
     prob = ODEProblem(f!, q, tspan, p)
     sol = solve(prob, Tsit5())
+    # sol = solve(prob, Tsit5(), maxiters = 2, internalnorm = mynorm)
 end
 
+println("proc $rank is waiting at Barrier 8")
+MPI.Barrier(comm)
 q = sol.u[end]
 
-@one_at_a_time println("proc $rank is waiting at Barrier 9")
+println("proc $rank is waiting at Barrier 9")
 MPI.Barrier(comm)
 
-@only_root println("without ghosts (sync)")
 update_ghosts!(q)
-disable_ghosts(q)
-@one_at_a_time @show q
+@one_at_a_time @show owned_values(q)
 
 MPI.Finalize()
 end

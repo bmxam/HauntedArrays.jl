@@ -16,35 +16,27 @@ else
     lid2part = [1, 2, 2, 2, 2]
 end
 
-v = HauntedVector(comm, lid2gid, lid2part)
-# if rank == 0
-#     v .= [1, 2, 3, 4]
-# else
-#     v .= [11, 12, 13, 14, 15]
-# end
+v = HauntedArray(comm, lid2gid, lid2part)
+if rank == 0
+    v .= [1, 2, 3, 4]
+else
+    v .= [11, 12, 13, 14, 15]
+end
 
-# @only_root println("without ghosts")
-# disable_ghosts(v)
-# @one_at_a_time @show v
+@one_at_a_time @show v
+@one_at_a_time @show owned_values(v)
 
-# @only_root println("with ghosts (no sync)")
-# enable_ghosts(v)
-# @one_at_a_time @show v
+update_ghosts!(v)
+@one_at_a_time @show v
 
-# @only_root println("with ghosts (sync)")
-# update_ghosts!(v)
-# @one_at_a_time @show v
+@only_root @show similar(v)
+@only_root @show typeof(v)
 
-# @only_root @show similar(v)
-# @only_root @show typeof(v)
-
-# # disable_ghosts(v)
-# # enable_ghosts(v)
 # # @only_root @show A
-# @one_at_a_time @show axes(v)
+@one_at_a_time @show axes(v)
 
-# A = similar(v, eltype(v), axes(v))
-# A .= 1.0
+A = similar(v, eltype(v), axes(v))
+A .= 1.0
 
 # tmp = @.. broadcast = false v / A
 

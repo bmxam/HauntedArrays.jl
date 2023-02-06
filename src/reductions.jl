@@ -13,16 +13,16 @@ for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr =>
     @eval function Base.$func(
         f::F,
         op::OP,
-        u::HauntedVector,
-        etc::Vararg{HauntedVector};
+        u::HauntedArray,
+        etc::Vararg{HauntedArray};
         kws...,
     ) where {F,OP}
         foreach(v -> _check_compatible_arrays(u, v), etc)
         comm = get_comm(u)
-        ups = map(get_array_without_ghosts, (u, etc...))
+        ups = map(owned_values, (u, etc...))
         rlocal = $func(f, op, ups...; kws...)
         op_mpi = MPI.Op(op, typeof(rlocal); iscommutative = $commutative)
-        MPI.Allreduce(rlocal, op_mpi, comm)
+        return MPI.Allreduce(rlocal, op_mpi, comm)
     end
 
     # # Make things work with zip(u::PencilArray, v::PencilArray, ...)
@@ -37,12 +37,17 @@ for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr =>
     # end
 end
 
-function Base.any(f::F, u::HauntedVector) where {F<:Function}
-    xlocal = any(f, get_array_without_ghosts(u))::Bool
+function Base.:(==)(a::HauntedArray, b::HauntedArray)
+    xlocal = ==(owned_values(a), owned_values(b))
+    MPI.Allreduce(xlocal, &, get_comm(a))
+end
+
+function Base.any(f::F, u::HauntedArray) where {F<:Function}
+    xlocal = any(f, owned_values(u))::Bool
     MPI.Allreduce(xlocal, |, get_comm(u))
 end
 
-function Base.all(f::F, u::HauntedVector) where {F<:Function}
-    xlocal = all(f, get_array_without_ghosts(u))::Bool
+function Base.all(f::F, u::HauntedArray) where {F<:Function}
+    xlocal = all(f, owned_values(u))::Bool
     MPI.Allreduce(xlocal, &, get_comm(u))
 end
