@@ -9,7 +9,7 @@ include("./Exchanger.jl")
 export update_ghosts!
 
 include("./Array.jl")
-export HauntedArray, HauntedVector, owned_values, get_comm
+export HauntedArray, HauntedVector, owned_values, owned_indices, get_comm
 
 # include("./Vector.jl")
 # export HauntedVector, enable_ghosts, disable_ghosts

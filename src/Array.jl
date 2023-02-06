@@ -34,6 +34,7 @@ end
 @inline get_exchanger(A::HauntedArray) = A.exchanger
 @inline get_comm(A::HauntedArray) = get_comm(get_exchanger(A))
 @inline owned_values(A::HauntedArray) = A.ownedValues
+@inline owned_indices(A::HauntedArray) = A.oids
 
 
 function HauntedArray(
