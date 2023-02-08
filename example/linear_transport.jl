@@ -48,6 +48,7 @@ function f!(dq, q, p, t)
 
     update_ghosts!(q)
     for i in owned_indices(q)
+        (i == 1) && continue # boundary condition
         dq[i] = -c / p.Δx * (q[i] - q[i-1])
     end
 end
