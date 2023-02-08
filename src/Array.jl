@@ -45,13 +45,25 @@ function HauntedArray(
 ) where {I,N}
     exchanger = MPIExchanger(comm, lid2gid, lid2part)
 
-    # Array with ghosts
-    array = zeros(T, size(lid2gid))
-
-    # Create array without ghosts
+    # Additionnal infos
     mypart = MPI.Comm_rank(get_comm(exchanger)) + 1
     oids = findall(part -> part == mypart, lid2part)
     ghids = findall(part -> part != mypart, lid2part)
+
+    return HauntedArray(exchanger, lid2gid, oids, ghids, T)
+end
+
+function HauntedArray(
+    exchanger::AbstractExchanger,
+    lid2gid::Array{I,N},
+    oids,
+    ghids,
+    T = Float64,
+) where {I,N}
+    # Array with ghosts
+    array = zeros(T, size(lid2gid))
+
+    # Array without ghosts
     ownedValues = view(array, oids)
 
     return HauntedArray(array, ownedValues, exchanger, lid2gid, oids, ghids)
