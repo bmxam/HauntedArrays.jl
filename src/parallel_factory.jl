@@ -187,7 +187,7 @@ function _identify_asked_gids!(
     toberecv_part2gids::Dict{Int,Vector{I}},
     tobesent_part2gids::Dict{Int,Vector{I}},
     comm::MPI.Comm,
-) where {N,I}
+) where {I}
     # Receive asked elts ids
     # we want to identify which dof we will be sending to `src` partitions, so the buffer is name "to be sent"
     send_reqs = MPI.Request[]
