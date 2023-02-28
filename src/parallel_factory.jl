@@ -209,3 +209,10 @@ function _identify_asked_gids!(
     #MPI.Waitall!(recv_reqs)
 
 end
+
+"""
+When building a Matrix from a Vector, it has to be decided who owns the common indices
+"""
+function decide_gid2part(mat_lid2gid, vec_lid2part)
+
+end

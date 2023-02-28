@@ -21,14 +21,17 @@ struct HauntedArray{T,N,E,I} <: AbstractHauntedArray{T,N} where {E<:AbstractExch
     # Local to global index
     lid2gid::Array{I,N}
 
+    # Local index to partition owning the element
+    lid2part::Array{Int,N}
+
     # Element indices, in `array`, that are owned by this rank -> `parentindices(ownedValues)`
     oids::Vector{I}
 
     # Element indices, in `array`, that are ghosts
     ghids::Vector{I}
 
-    HauntedArray(a::AbstractArray{T,N}, o, ex, l2g, oids, ghids) where {T,N} =
-        new{T,N,typeof(ex),eltype(l2g)}(a, o, ex, l2g, oids, ghids)
+    HauntedArray(a::AbstractArray{T,N}, o, ex, l2g, l2p, oids, ghids) where {T,N} =
+        new{T,N,typeof(ex),eltype(l2g)}(a, o, ex, l2g, l2p, oids, ghids)
 end
 
 @inline get_exchanger(A::HauntedArray) = A.exchanger
@@ -50,12 +53,13 @@ function HauntedArray(
     oids = findall(part -> part == mypart, lid2part)
     ghids = findall(part -> part != mypart, lid2part)
 
-    return HauntedArray(exchanger, lid2gid, oids, ghids, T)
+    return HauntedArray(exchanger, lid2gid, lid2part, oids, ghids, T)
 end
 
 function HauntedArray(
     exchanger::AbstractExchanger,
     lid2gid::Array{I,N},
+    lid2part::Array{Int,N},
     oids,
     ghids,
     T = Float64,
@@ -66,7 +70,8 @@ function HauntedArray(
     # Array without ghosts
     ownedValues = view(array, oids)
 
-    return HauntedArray(array, ownedValues, exchanger, lid2gid, oids, ghids)
+    return HauntedArray(array, ownedValues, exchanger, lid2gid, lid2part, oids, ghids)
 end
 
-# const HauntedVector = HauntedArray
+const HauntedVector{T} = HauntedArray{T,1}
+const HauntedMatrix{T} = HauntedArray{T,2}
