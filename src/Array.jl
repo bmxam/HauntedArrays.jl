@@ -24,10 +24,10 @@ struct HauntedArray{T,N,E,I} <: AbstractHauntedArray{T,N} where {E<:AbstractExch
     # Local index to partition owning the element
     lid2part::Array{Int,N}
 
-    # Element indices, in `array`, that are owned by this rank -> `parentindices(ownedValues)`
+    # Local element indices, in `array`, that are owned by this rank -> `parentindices(ownedValues)`
     oids::Vector{I}
 
-    # Element indices, in `array`, that are ghosts
+    # Local element indices, in `array`, that are ghosts
     ghids::Vector{I}
 
     HauntedArray(a::AbstractArray{T,N}, o, ex, l2g, l2p, oids, ghids) where {T,N} =
@@ -65,7 +65,11 @@ function HauntedArray(
     T = Float64,
 ) where {I,N}
     # Array with ghosts
-    array = zeros(T, size(lid2gid))
+    array = try
+        zeros(T, size(lid2gid))
+    catch e
+        Array{T}(undef, size(lid2gid))
+    end
 
     # Array without ghosts
     ownedValues = view(array, oids)

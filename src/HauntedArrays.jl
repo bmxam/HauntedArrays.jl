@@ -1,5 +1,6 @@
 module HauntedArrays
 using MPI
+using LinearAlgebra
 
 include("./utils.jl")
 export @one_at_a_time, @only_root, @only_proc
@@ -16,8 +17,11 @@ export HauntedArray, HauntedVector, owned_values, owned_indices, get_comm
 
 include("./interface.jl")
 include("./collective.jl")
+export gather
+
 include("./reductions.jl")
 include("./broadcast.jl")
+include("./algebra.jl")
 
 
 end

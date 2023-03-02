@@ -1,8 +1,9 @@
 Base.parent(A::HauntedArray) = A.array
 
 Base.size(A::HauntedArray) = size(parent(A))
-# Base.getindex(A::HauntedArray, i::Int) = getindex(parent(A), i)
 Base.setindex!(A::HauntedArray, v, i::Int) = setindex!(parent(A), v, i)
+Base.setindex!(A::HauntedArray, v, I::Vararg{Int,N}) where {N} =
+    setindex!(parent(A), v, I...)
 
 function Base.getindex(A::HauntedArray, i::Int)
     # println("getting element $i of rank $(MPI.Comm_rank(get_comm(A)))")
@@ -22,7 +23,15 @@ function Base.similar(A::HauntedArray, ::Type{S}) where {S}
     # Create array without ghosts
     ownedValues = view(array, A.oids)
 
-    return HauntedArray(array, ownedValues, A.exchanger, A.lid2gid, A.oids, A.ghids)
+    return HauntedArray(
+        array,
+        ownedValues,
+        A.exchanger,
+        A.lid2gid,
+        A.lid2part,
+        A.oids,
+        A.ghids,
+    )
 end
 
 Base.similar(A::HauntedArray{T}) where {T} = similar(A, T)
@@ -43,7 +52,7 @@ function Base.similar(A::HauntedVector, ::Type{S}, dims::Dims{2}) where {S}
 
     lid2part = matrix_from_vector(get_exchanger(A), n, A.lid2part)
 
-    return HauntedArray(get_comm(A), lid2gid, lid2part)
+    return HauntedArray(get_comm(A), lid2gid, lid2part, S)
 end
 
 function Base.zero(A::HauntedArray)

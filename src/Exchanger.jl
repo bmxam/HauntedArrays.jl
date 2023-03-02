@@ -29,8 +29,8 @@ function MPIExchanger(
         gi = lid2gid[li]
         gid2lid[gi] = li
     end
-    @one_at_a_time display(lid2gid)
-    @one_at_a_time display(lid2part)
+    # @one_at_a_time display(lid2gid)
+    # @one_at_a_time display(lid2part)
 
     # Convert the dicts with lid
     tobesent_part2lid = Dict{Int,Vector{CartesianIndex{N}}}()
@@ -51,7 +51,7 @@ Synchronize ghost values using MPI communications.
 
 Version without buffer
 """
-function update_ghosts!(array::AbstractVector, exchanger::MPIExchanger)
+function update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
     # Alias
     comm = exchanger.comm
     tobesent_part2lid = exchanger.tobesent_part2lid
