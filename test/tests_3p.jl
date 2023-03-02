@@ -1,11 +1,15 @@
 module test
 using MPI
 using HauntedArrays
+using Random
+using LinearSolve
 
 MPI.Initialized() || MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+
+rng = MersenneTwister(1234)
 
 function test_gather_3p()
     if rank == 0
@@ -45,7 +49,7 @@ function test_gather_3p()
         A[3, :] = ['q', 'z', 'r']
     end
 
-    @one_at_a_time display(A)
+    # @one_at_a_time display(A)
 
     B = gather(A)
     @only_root begin
@@ -80,10 +84,56 @@ function test_gather_3p()
     end
 
 
-    @only_root println("End of test_3_procs")
+    @only_root println("End of test_gather_3p")
+end
+
+function test_ldiv_3p()
+    if rank == 0
+        lid2gid = [1, 2, 6]
+        lid2part = [1, 1, 1]
+
+    elseif rank == 1
+        lid2gid = [2, 3, 5, 6]
+        lid2part = [1, 2, 2, 1]
+
+    elseif rank == 2
+        lid2gid = [3, 4, 5]
+        lid2part = [2, 3, 2]
+    end
+
+    Ag = rand(rng, 6, 6)
+    Ag[1, 3:5] .= 0.0
+    Ag[2, 4] = 0.0
+    Ag[3, 1] = 0.0
+    Ag[4, 1] = 0.0
+    Ag[4, 2] = 0.0
+    Ag[4, 6] = 0.0
+    Ag[5, 1] = 0.0
+    Ag[6, 4] = 0.0
+    bg = rand(rng, 6)
+
+    # @only_root @show Ag \ bg
+
+    bl = HauntedArray(comm, lid2gid, lid2part)
+    for lid in CartesianIndices(bl.lid2gid)
+        bl[lid] = bg[bl.lid2gid[lid]]
+    end
+
+    Al = similar(bl, length(bl), length(bl))
+    for lid in CartesianIndices(Al.lid2gid)
+        # Al[lid]
+        Al[lid] = Ag[Al.lid2gid[lid]]
+    end
+
+    @only_root display(Ag \ bg)
+    cg = gather(Al \ bl)
+    @only_root display(cg)
+
+    error("ldiv not implemented yet")
 end
 
 test_gather_3p()
+# test_ldiv_3p()
 
 
 isinteractive() || MPI.Finalize()
