@@ -132,7 +132,53 @@ function test_ldiv_3p()
     error("ldiv not implemented yet")
 end
 
+function test_mul_3p()
+    if rank == 0
+        lid2gid = [1, 2, 6]
+        lid2part = [1, 1, 1]
+
+    elseif rank == 1
+        lid2gid = [2, 3, 5, 6]
+        lid2part = [1, 2, 2, 1]
+
+    elseif rank == 2
+        lid2gid = [3, 4, 5]
+        lid2part = [2, 3, 2]
+    end
+
+    Ag = rand(rng, 6, 6)
+    Ag[1, 3:5] .= 0.0
+    Ag[2, 4] = 0.0
+    Ag[3, 1] = 0.0
+    Ag[4, 1] = 0.0
+    Ag[4, 2] = 0.0
+    Ag[4, 6] = 0.0
+    Ag[5, 1] = 0.0
+    Ag[6, 4] = 0.0
+    bg = rand(rng, 6)
+
+    # @only_root @show Ag \ bg
+
+    bl = HauntedArray(comm, lid2gid, lid2part)
+    for lid in CartesianIndices(bl.lid2gid)
+        bl[lid] = bg[bl.lid2gid[lid]]
+    end
+
+    Al = similar(bl, length(bl), length(bl))
+    for lid in CartesianIndices(Al.lid2gid)
+        # Al[lid]
+        Al[lid] = Ag[Al.lid2gid[lid]]
+    end
+
+    @only_root display(Ag)
+    @only_root display(bg)
+    @only_root display(Ag * bg)
+    cg = gather(Al * bl)
+    @only_root display(cg)
+end
+
 test_gather_3p()
+test_mul_3p()
 # test_ldiv_3p()
 
 
