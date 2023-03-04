@@ -1,9 +1,7 @@
 module HauntedArrays
 using MPI
 using LinearAlgebra
-
-include("./utils.jl")
-export @one_at_a_time, @only_root, @only_proc
+using MPIUtils
 
 include("./parallel_factory.jl")
 include("./Exchanger.jl")
