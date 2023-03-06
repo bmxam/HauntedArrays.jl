@@ -1,15 +1,18 @@
 function LinearAlgebra.mul!(
-    C::HauntedArray,
-    A::HauntedArray,
-    B::HauntedArray,
+    C::HauntedVector,
+    A::HauntedMatrix,
+    B::HauntedVector,
     α::Number,
     β::Number,
 )
-    update_ghosts!(A, B)
-    mul!(parent(C), parent(A), parent(B), α, β)
-    update_ghosts!(C)
+    # Arbitrary choice : A and B are assumed "up-to-date"
+    # update_ghosts!(A, B)
 
-    error("this implementation is wrong")
+    # Parent mul!
+    mul!(parent(C), parent(A), parent(B), α, β)
+
+    # Arbitrary choice : we choose to update C
+    update_ghosts!(C)
 
     # I know this is weird for an in-place method,
     # but without returning C (or just @showing it),
@@ -17,14 +20,11 @@ function LinearAlgebra.mul!(
     C
 end
 
-# for f in (Base.:+, Base.:-)
-#     @eval function ($f)(A::HauntedArray, B::HauntedArray)
-#         # no need to update A and B before operation : ghost values
-#         # will be wrong but we udate them on the result.
-#         _C = parent(A) + parent(B)
-#         C = zero(A)
-#         C.array .= _C
-#         update_ghosts!(C)
-#         return C
-#     end
-# end
+for f in (:+, :-)
+    @eval function (Base.$f)(A::HauntedArray, B::HauntedArray)
+        _C = $f(parent(A), parent(B))
+        C = zero(A)
+        C.array .= _C
+        return C
+    end
+end

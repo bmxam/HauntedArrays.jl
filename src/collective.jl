@@ -4,7 +4,10 @@
 
 Update ghost values of the HauntedArray (involve collective communications)
 """
-update_ghosts!(A::HauntedArray) = update_ghosts!(parent(A), get_exchanger(A))
+function update_ghosts!(::HauntedArray)
+    error("`update_ghosts!` only available for `HauntedVector` for now")
+end
+update_ghosts!(A::HauntedVector) = update_ghosts!(parent(A), get_exchanger(A))
 
 update_ghosts!(A::Vararg{HauntedArray,N}) where {N} = map(update_ghosts!, A) # to be improved
 
@@ -12,6 +15,8 @@ update_ghosts!(A::Vararg{HauntedArray,N}) where {N} = map(update_ghosts!, A) # t
 Gather the HauntedArray on the root process. Return an `Array`
 """
 function gather(v::HauntedArray, root = 0)
+    error("to be updated with new design")
+
     comm = get_comm(v)
 
     nloc = length(v.oids)
