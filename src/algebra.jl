@@ -1,3 +1,6 @@
+# For all algebra operation, it is assumed that the input HauntedArrays are up-to-date.
+# However, on the output it depends (for now) on the operation...
+
 function LinearAlgebra.mul!(
     C::HauntedVector,
     A::HauntedMatrix,

@@ -6,6 +6,9 @@ Then `lid2gid` is assumed to be the same along all dimensions.
 
 # Warning
 For now, the `exchanger` is only relevant for HauntedVector.
+
+# Dev notes
+In a future version, `array` will be of type `A <: AbstractArray` to allow SparseArrays
 """
 struct HauntedArray{T,N,E,I} <:
        AbstractHauntedArray{T,N} where {E<:AbstractExchanger,I<:Integer}
@@ -32,7 +35,19 @@ end
 @inline get_exchanger(A::HauntedArray) = A.exchanger
 @inline get_comm(A::HauntedArray) = get_comm(get_exchanger(A))
 @inline owned_indices(A::HauntedArray) = A.oids
-@inline owned_values(A::HauntedArray) = view(A, ntuple(d -> owned_indices(A), ndims(A)))
+# @inline owned_values(A::HauntedArray) = view(A, ntuple(d -> owned_indices(A), ndims(A)))
+function owned_values(A::HauntedArray)
+    view(parent(A), _scalar_index_to_array_index(A.oids, ndims(A)))
+end
+
+"""
+Transform a `Vector` index into a Vector of nd-CartesianIndices
+(assuming same length in all Array direction)
+"""
+function _scalar_index_to_array_index(I::AbstractVector, nd)
+    tuple_I = ntuple(d -> I, nd)
+    return [CartesianIndex(i) for i in Iterators.product(tuple_I...)]
+end
 
 
 const HauntedVector{T} = HauntedArray{T,1}
@@ -53,9 +68,8 @@ function HauntedArray(
     # Additionnal infos
     mypart = MPI.Comm_rank(get_comm(exchanger)) + 1
     oids = findall(part -> part == mypart, lid2part)
-    ghids = findall(part -> part != mypart, lid2part)
 
-    return HauntedArray(exchanger, lid2gid, lid2part, oids, ghids, ndims, T)
+    return HauntedArray(exchanger, lid2gid, lid2part, oids, ndims, T)
 end
 
 function HauntedArray(
@@ -63,7 +77,6 @@ function HauntedArray(
     lid2gid::Vector{I},
     lid2part::Vector{Int},
     oids,
-    ghids,
     ndims::Int,
     T = Float64,
 ) where {I}
@@ -77,7 +90,7 @@ function HauntedArray(
         Array{T}(undef, dims)
     end
 
-    return HauntedArray(array, exchanger, lid2gid, lid2part, oids, ghids)
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oids)
 end
 
 function HauntedVector(

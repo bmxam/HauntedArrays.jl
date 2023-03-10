@@ -14,45 +14,74 @@ update_ghosts!(A::Vararg{HauntedArray,N}) where {N} = map(update_ghosts!, A) # t
 """
 Gather the HauntedArray on the root process. Return an `Array`
 """
-function gather(v::HauntedArray, root = 0)
-    error("to be updated with new design")
+function gather(A::HauntedArray{T,N}, root = 0) where {T,N}
+    comm = get_comm(A)
 
-    comm = get_comm(v)
+    (MPI.Comm_size(comm) == 1) && return parent(A)
 
-    nloc = length(v.oids)
+    nloc = length(owned_indices(A))^N
     n_by_rank = MPI.Allgather(nloc, comm)
-    nmax = maximum(n_by_rank)
+    nmax_l2g = maximum(n_by_rank)
+    nmax_val = nmax_l2g
 
-    _lid2gid = similar(v.lid2gid, nmax)
-    _lid2gid[1:nloc] = v.lid2gid[v.oids]
-    _lid2gid = MPI.Gather(_lid2gid, root, comm)
-
-    _values = similar(v.array, nmax)
-    _values[1:nloc] = v.array[v.oids]
+    _values = similar(parent(A), nmax_val)
+    _values[1:nloc] = owned_values(A)
     _values = MPI.Gather(_values, root, comm)
+
+    lid2gid = gather_lid2gid(A, root)
 
     if MPI.Comm_rank(comm) == root
         ntot = sum(n_by_rank)
-        lid2gid = similar(_lid2gid, ntot)
         values = similar(_values, ntot)
 
-        iabs = 1
+        i_val = 1
         for ip = 1:MPI.Comm_size(comm)
             for i = 1:n_by_rank[ip]
-                lid2gid[iabs] = _lid2gid[(ip-1)*nmax+i]
-                values[iabs] = _values[(ip-1)*nmax+i]
-                iabs += 1
+                values[i_val] = _values[(ip-1)*nmax_val+i]
+                i_val += 1
             end
         end
 
         # Reshape and reorder
-        ndims = length(lid2gid[1])
-        dims = ntuple(d -> maximum(cartIndex -> cartIndex[1], lid2gid), ndims)
-        array = similar(values, dims)
-        for (cartIndex, value) in zip(lid2gid, values)
-            array[cartIndex] = value
+        # The line below allows for non-square matrix. If we have the square-matrix
+        # hypothesis, we can compute the 'maximum' only once. But since this is a debug
+        # function, no need to optimize.
+        dims = ntuple(d -> maximum(cartIndex -> cartIndex[d], lid2gid), N)
+        array = zeros(eltype(values), dims)
+        for (gid, value) in zip(lid2gid, values)
+            array[gid] = value
         end
 
         return array
+    end
+end
+
+function gather_lid2gid(A::HauntedArray{T,N}, root = 0) where {T,N}
+    comm = get_comm(A)
+
+    (MPI.Comm_size(comm) == 1) && return A.lid2gid
+
+    nloc = length(owned_indices(A))^N
+    n_by_rank = MPI.Allgather(nloc, comm)
+    nmax = maximum(n_by_rank)
+
+    _l2g = _scalar_index_to_array_index(A.lid2gid[owned_indices(A)], N)
+    _lid2gid = similar(_l2g, nmax)
+    _lid2gid[1:nloc] = _l2g
+    _lid2gid = MPI.Gather(_lid2gid, root, comm)
+
+    if MPI.Comm_rank(comm) == root
+        ntot = sum(n_by_rank)
+        lid2gid = similar(_lid2gid, ntot)
+
+        i_l2g = 1
+        for ip = 1:MPI.Comm_size(comm)
+            for i = 1:n_by_rank[ip]
+                lid2gid[i_l2g] = _lid2gid[(ip-1)*nmax+i]
+                i_l2g += 1
+            end
+        end
+
+        return lid2gid
     end
 end

@@ -1,5 +1,8 @@
 module test
 using MPI
+using MPIUtils
+using Bcube
+using BcubeParallel
 using HauntedArrays
 using Random
 using LinearSolve
@@ -8,173 +11,113 @@ MPI.Initialized() || MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+np = MPI.Comm_size(comm)
+@assert np == 3 "tests to be run on 3 procs"
 
 rng = MersenneTwister(1234)
 
+out_dir = joinpath(@__DIR__, "../myout")
+tmp_path = joinpath(out_dir, "tmp.msh")
+
+@only_root begin
+    gen_rectangle_mesh(
+        tmp_path,
+        :tri;
+        nx = 4,
+        ny = 2,
+        npartitions = np,
+        split_files = true,
+        create_ghosts = true,
+    )
+end
+MPI.Barrier(comm)
+dmesh = read_partitioned_msh(tmp_path, comm)
+fSpace = FunctionSpace(:Lagrange, 1)
+feSpace = Bcube.SingleFESpace(fSpace, parent(dmesh))
+lid2gid, lid2part =
+    BcubeParallel.compute_dof_global_numbering(Bcube._get_dhl(feSpace), dmesh)
+
+# @one_at_a_time display(lid2gid)
+# @one_at_a_time display(lid2part)
+
 function test_gather_3p()
-    if rank == 0
-        lid2gid = [1, 2, 6]
-        lid2part = [1, 1, 1]
+    # Vector
+    Al = HauntedVector(comm, lid2gid, lid2part)
+    nl = size(Al, 1)
+    no = length(owned_indices(Al))
+    ng = MPI.Allreduce(no, MPI.SUM, comm)
+    _Ag = rand(rng, ng)
 
-    elseif rank == 1
-        lid2gid = [2, 3, 5, 6]
-        lid2part = [1, 2, 2, 1]
+    Al .= _Ag[lid2gid]
 
-    elseif rank == 2
-        lid2gid = [3, 4, 5]
-        lid2part = [2, 3, 2]
-    end
+    Ag = gather(Al)
 
-    # Test 1
-    x = HauntedArray(comm, lid2gid, lid2part)
-    x.array .= lid2gid
-    y = gather(x)
-    @only_root @show y == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-
-    # Test 2
-    n = length(x)
-    A = similar(x, Char, (n, n))
-    if rank == 0
-        A[1, :] = ['a', 'b', 'c']
-        A[2, :] = ['d', 'e', 'f']
-        A[3, :] = ['g', 'h', 'i']
-    elseif rank == 1
-        A[1, :] = ['e', 'j', 'k', 'f']
-        A[2, :] = ['l', 'm', 'n', 'o']
-        A[3, :] = ['p', 'q', 'r', 's']
-        A[4, :] = ['h', 't', 'u', 'i']
-    else
-        A[1, :] = ['m', 'v', 'n']
-        A[2, :] = ['w', 'x', 'y']
-        A[3, :] = ['q', 'z', 'r']
-    end
-
-    # @one_at_a_time display(A)
-
-    B = gather(A)
     @only_root begin
-        bool = Bool[]
-        push!(bool, B[1, 1] == 'a')
-        push!(bool, B[1, 2] == 'b')
-        push!(bool, B[1, 6] == 'c')
-        push!(bool, B[2, 1] == 'd')
-        push!(bool, B[2, 2] == 'e')
-        push!(bool, B[2, 3] == 'j')
-        push!(bool, B[2, 5] == 'k')
-        push!(bool, B[2, 6] == 'f')
-        push!(bool, B[3, 2] == 'l')
-        push!(bool, B[3, 3] == 'm')
-        push!(bool, B[3, 4] == 'v')
-        push!(bool, B[3, 5] == 'n')
-        push!(bool, B[3, 6] == 'o')
-        push!(bool, B[4, 3] == 'w')
-        push!(bool, B[4, 4] == 'x')
-        push!(bool, B[4, 5] == 'y')
-        push!(bool, B[5, 2] == 'p')
-        push!(bool, B[5, 3] == 'q')
-        push!(bool, B[5, 4] == 'z')
-        push!(bool, B[5, 5] == 'r')
-        push!(bool, B[5, 6] == 's')
-        push!(bool, B[6, 1] == 'g')
-        push!(bool, B[6, 2] == 'h')
-        push!(bool, B[6, 3] == 't')
-        push!(bool, B[6, 5] == 'u')
-        push!(bool, B[6, 6] == 'i')
-        @show all(bool)
+        @show Ag == _Ag
     end
 
+    # Matrix
+    Al = similar(Al, nl, nl)
+    __Ag = rand(rng, ng, ng)
+    for (i, j) in Iterators.product(1:length(Al.lid2gid), 1:length(Al.lid2gid))
+        Al[i, j] = __Ag[Al.lid2gid[i], Al.lid2gid[j]]
+    end
+
+    Ag = gather(Al)
+    l2g = HauntedArrays.gather_lid2gid(Al)
+    @only_root begin
+        _Ag = zeros(ng, ng)
+        _Ag[l2g] .= __Ag[l2g]
+        @show _Ag == Ag
+    end
 
     @only_root println("End of test_gather_3p")
 end
 
-function test_ldiv_3p()
-    if rank == 0
-        lid2gid = [1, 2, 6]
-        lid2part = [1, 1, 1]
-
-    elseif rank == 1
-        lid2gid = [2, 3, 5, 6]
-        lid2part = [1, 2, 2, 1]
-
-    elseif rank == 2
-        lid2gid = [3, 4, 5]
-        lid2part = [2, 3, 2]
-    end
-
-    Ag = rand(rng, 6, 6)
-    Ag[1, 3:5] .= 0.0
-    Ag[2, 4] = 0.0
-    Ag[3, 1] = 0.0
-    Ag[4, 1] = 0.0
-    Ag[4, 2] = 0.0
-    Ag[4, 6] = 0.0
-    Ag[5, 1] = 0.0
-    Ag[6, 4] = 0.0
-    bg = rand(rng, 6)
-
-    # @only_root @show Ag \ bg
-
-    bl = HauntedArray(comm, lid2gid, lid2part)
-    for lid in CartesianIndices(bl.lid2gid)
-        bl[lid] = bg[bl.lid2gid[lid]]
-    end
-
-    Al = similar(bl, length(bl), length(bl))
-    for lid in CartesianIndices(Al.lid2gid)
-        # Al[lid]
-        Al[lid] = Ag[Al.lid2gid[lid]]
-    end
-
-    @only_root display(Ag \ bg)
-    cg = gather(Al \ bl)
-    @only_root display(cg)
-
-    error("ldiv not implemented yet")
-end
+test_ldiv_3p() = error("ldiv not implemented yet")
 
 function test_mul_3p()
-    if rank == 0
-        lid2gid = [1, 2, 6]
-        lid2part = [1, 1, 1]
+    error("there is an error in the product (and most likely in the gather)")
 
-    elseif rank == 1
-        lid2gid = [2, 3, 5, 6]
-        lid2part = [1, 2, 2, 1]
+    xl = HauntedVector(comm, lid2gid, lid2part)
+    nl = length(xl)
+    no = length(owned_indices(xl))
+    ng = MPI.Allreduce(no, MPI.SUM, comm)
+    _xg = rand(rng, ng)
+    xl .= _xg[lid2gid]
 
-    elseif rank == 2
-        lid2gid = [3, 4, 5]
-        lid2part = [2, 3, 2]
+    Al = similar(xl, nl, nl)
+    __Ag = rand(rng, ng, ng)
+    for (i, j) in Iterators.product(1:length(Al.lid2gid), 1:length(Al.lid2gid))
+        Al[i, j] = __Ag[Al.lid2gid[i], Al.lid2gid[j]]
     end
 
-    Ag = rand(rng, 6, 6)
-    Ag[1, 3:5] .= 0.0
-    Ag[2, 4] = 0.0
-    Ag[3, 1] = 0.0
-    Ag[4, 1] = 0.0
-    Ag[4, 2] = 0.0
-    Ag[4, 6] = 0.0
-    Ag[5, 1] = 0.0
-    Ag[6, 4] = 0.0
-    bg = rand(rng, 6)
-
-    # @only_root @show Ag \ bg
-
-    bl = HauntedArray(comm, lid2gid, lid2part)
-    for lid in CartesianIndices(bl.lid2gid)
-        bl[lid] = bg[bl.lid2gid[lid]]
+    l2g = HauntedArrays.gather_lid2gid(Al)
+    @only_root begin
+        _Ag = zeros(ng, ng)
+        _Ag[l2g] .= __Ag[l2g]
+        display(_Ag)
     end
 
-    Al = similar(bl, length(bl), length(bl))
-    for lid in CartesianIndices(Al.lid2gid)
-        # Al[lid]
-        Al[lid] = Ag[Al.lid2gid[lid]]
+
+    Ag = gather(Al) # for debug
+    xg = gather(xl) # for debug
+    bl = Al * xl # for debug
+    bg = gather(Al * xl)
+
+    @one_at_a_time display(Al)
+    @one_at_a_time display(xl)
+    @one_at_a_time display(bl)
+
+    @only_root begin
+        _bg = _Ag * _xg
+        display(bg)
+        display(_bg)
+        display(Ag * xg)
+        @show _bg == bg
     end
 
-    @only_root display(Ag)
-    @only_root display(bg)
-    @only_root display(Ag * bg)
-    cg = gather(Al * bl)
-    @only_root display(cg)
+    @only_root println("End of test_gather_3p")
 end
 
 test_gather_3p()
