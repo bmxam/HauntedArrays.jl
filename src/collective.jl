@@ -42,8 +42,6 @@ function gather(A::HauntedArray, root = 0)
     # number of elts)
     cartOwnedValues = _cartesian_owned_values(A)
     _values = similar(cartOwnedValues, nmax)
-    @only_root @show size(_values[1:nloc])
-    @only_root @show size(cartOwnedValues)
     _values[1:nloc] .= cartOwnedValues
     _values = MPI.Gather(_values, root, comm)
 

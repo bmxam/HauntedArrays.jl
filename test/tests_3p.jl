@@ -19,18 +19,18 @@ rng = MersenneTwister(1234)
 out_dir = joinpath(@__DIR__, "../myout")
 tmp_path = joinpath(out_dir, "tmp.msh")
 
-# @only_root begin
-#     gen_rectangle_mesh(
-#         tmp_path,
-#         :tri;
-#         nx = 4,
-#         ny = 2,
-#         npartitions = np,
-#         split_files = true,
-#         create_ghosts = true,
-#     )
-# end
-# MPI.Barrier(comm)
+@only_root begin
+    gen_rectangle_mesh(
+        tmp_path,
+        :tri;
+        nx = 5,
+        ny = 3,
+        npartitions = np,
+        split_files = true,
+        create_ghosts = true,
+    )
+end
+MPI.Barrier(comm)
 dmesh = read_partitioned_msh(tmp_path, comm)
 fSpace = FunctionSpace(:Lagrange, 1)
 feSpace = Bcube.SingleFESpace(fSpace, parent(dmesh))
@@ -96,7 +96,7 @@ function test_mul_3p()
     @only_root begin
         _Ag = zeros(ng, ng)
         _Ag[l2g] .= __Ag[l2g]
-        display(_Ag)
+        # display(_Ag)
     end
 
 
@@ -105,16 +105,19 @@ function test_mul_3p()
     bl = Al * xl # for debug
     bg = gather(Al * xl)
 
-    @one_at_a_time display(Al)
-    @one_at_a_time display(xl)
-    @one_at_a_time display(bl)
+    # @one_at_a_time display(Al)
+    # @one_at_a_time display(xl)
+    # @one_at_a_time display(bl)
 
     @only_root begin
         _bg = _Ag * _xg
-        display(bg)
-        display(_bg)
-        display(Ag * xg)
-        @show _bg == bg
+        # display(bg)
+        # display(_bg)
+        # display(Ag * xg)
+
+        for rtol in [1e-20 * 10^n for n = 0:10]
+            @show rtol, all(isapprox.(_bg, bg; rtol = rtol))
+        end
     end
 
     @only_root println("End of test_gather_3p")
