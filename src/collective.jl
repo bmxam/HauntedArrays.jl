@@ -11,9 +11,15 @@ update_ghosts!(A::HauntedVector) = update_ghosts!(parent(A), get_exchanger(A))
 
 update_ghosts!(A::Vararg{HauntedArray,N}) where {N} = map(update_ghosts!, A) # to be improved
 
-function _cartesian_oids(A::HauntedArray)
+function _cartesian_oid2lid(A::HauntedArray)
     # I don't understand why, but the below array is a matrix and not a vector
-    x = [CartesianIndex(i) for i in Iterators.product(_owned_indices(A)...)]
+    x = [CartesianIndex(i) for i in Iterators.product(_own_to_local_ndims(A)...)]
+    return vec(x)
+end
+
+function _cartesian_oid2gid(A::HauntedArray)
+    # I don't understand why, but the below array is a matrix and not a vector
+    x = [CartesianIndex(i) for i in Iterators.product(_own_to_global_ndims(A)...)]
     return vec(x)
 end
 
@@ -21,7 +27,7 @@ end
 Return a vector of the owned values of the Array, according to the `_cartesian_oids`
 ordering.
 """
-_cartesian_owned_values(A::HauntedArray) = view(parent(A), _cartesian_oids(A))
+_cartesian_owned_values(A::HauntedArray) = view(parent(A), _cartesian_oid2lid(A))
 
 """
 Gather the HauntedArray on the root process. Return an `Array`
@@ -34,13 +40,13 @@ function gather(A::HauntedArray, root = 0)
     (MPI.Comm_size(comm) == 1) && return parent(A)
 
     # Count number of element sent by each proc, and maximum of these
-    nloc = length(_cartesian_oids(A))
+    cartOwnedValues = _cartesian_owned_values(A)
+    nloc = length(cartOwnedValues)
     n_by_rank = MPI.Allgather(nloc, comm)
     nmax = maximum(n_by_rank)
 
     # Gather the values on the root partition (each part sends the same
     # number of elts)
-    cartOwnedValues = _cartesian_owned_values(A)
     _values = similar(cartOwnedValues, nmax)
     _values[1:nloc] .= cartOwnedValues
     _values = MPI.Gather(_values, root, comm)
@@ -73,22 +79,18 @@ end
 function gather_lid2gid(A::HauntedArray, root = 0)
     comm = get_comm(A)
 
-    (MPI.Comm_size(comm) == 1) && return A.lid2gid[owned_rows(A)]
+    (MPI.Comm_size(comm) == 1) && return A.lid2gid[own_to_local_rows(A)]
 
     # Count number of element sent by each proc, and maximum of these
-    cartOwnedIndices = _cartesian_oids(A)
-    nloc = length(cartOwnedIndices)
+    cartOwn2Glo = _cartesian_oid2gid(A)
+    nloc = length(cartOwn2Glo)
     n_by_rank = MPI.Allgather(nloc, comm)
     nmax = maximum(n_by_rank)
 
     # Gather the lid2gid on the root partition (each part sends the same
     # number of elts)
-    _l2g = similar(cartOwnedIndices)
-    for i in eachindex(_l2g)
-        _l2g[i] = CartesianIndex(ntuple(d -> A.lid2gid[cartOwnedIndices[i][d]], ndims(A)))
-    end
-    _lid2gid = similar(_l2g, nmax)
-    _lid2gid[1:nloc] .= _l2g
+    _lid2gid = similar(cartOwn2Glo, nmax)
+    _lid2gid[1:nloc] .= cartOwn2Glo
     _lid2gid = MPI.Gather(_lid2gid, root, comm)
 
     if MPI.Comm_rank(comm) == root

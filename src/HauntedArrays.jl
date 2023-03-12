@@ -8,10 +8,8 @@ include("./Exchanger.jl")
 export update_ghosts!
 
 include("./Array.jl")
-export HauntedArray, HauntedVector, owned_rows, get_comm
-
-# include("./Vector.jl")
-# export HauntedVector, enable_ghosts, disable_ghosts
+export HauntedArray,
+    HauntedVector, own_to_local_rows, owned_values, get_comm, local_to_global
 
 include("./interface.jl")
 include("./collective.jl")

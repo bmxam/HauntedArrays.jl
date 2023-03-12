@@ -12,8 +12,9 @@ each part owns a certain number of rows (but all the columns for these rows).
   - `array` : In a future version, `array` will be of type `A <: AbstractArray` to allow SparseArrays
   - `exchanger` : For now, only relevant for HauntedVector
   - `lid2gid` : local row index to global row index
-  - `lid2part` : Local row index to partition owning the element
-  - `oids` : rows indices that are owned by the current partition
+  - `lid2part` : Local row index to partition owning the element. Will most likely disappear. For now,
+    only serves to create a Matrix from a Vector
+  - `oid2lid` : rows indices that are owned by the current partition
 
 # Warning
 
@@ -31,35 +32,49 @@ struct HauntedArray{T,N,E,I} <:
     lid2gid::Vector{I}
 
     # Local index to partition owning the element
-    # -> will most likely disappear
     lid2part::Vector{Int}
 
-    # Local element indices, in the first dimension of `array`, that are owned by this rank
-    oids::Vector{I}
+    # Own to local element indices, in the first dimension of `array`, that are owned by this rank
+    oid2lid::Vector{I}
 
-    function HauntedArray(a::AbstractArray{T,N}, ex, l2g, l2p, oids) where {T,N}
-        new{T,N,typeof(ex),eltype(l2g)}(a, ex, l2g, l2p, oids)
+    function HauntedArray(a::AbstractArray{T,N}, ex, l2g, l2p, o2l) where {T,N}
+        new{T,N,typeof(ex),eltype(l2g)}(a, ex, l2g, l2p, o2l)
     end
 end
 
 @inline get_exchanger(A::HauntedArray) = A.exchanger
 @inline get_comm(A::HauntedArray) = get_comm(get_exchanger(A))
 @inline local_to_global(A::HauntedArray) = A.lid2gid
+@inline local_to_global(A::HauntedArray, i) = A.lid2gid[i]
+@inline own_to_local(A::HauntedArray) = A.oid2lid
+@inline own_to_local(A::HauntedArray, i) = A.oid2lid[i]
+@inline own_to_global(A::HauntedArray) = A.lid2gid[A.oid2lid]
+@inline own_to_global(A::HauntedArray, i) = A.lid2gid[A.oid2lid[i]]
 @inline local_to_part(A::HauntedArray) = A.lid2part
+@inline local_to_part(A::HauntedArray, i) = A.lid2part[i]
 
 """
 Return an array of the "rows" (i.e first dimension of the local array) that are truly owned
 by the current partition.
 """
-@inline owned_rows(A::HauntedArray) = A.oids
+@inline own_to_local_rows(A::HauntedArray) = own_to_local(A)
 
 """
-Create a tuple with indices, in each array dimension, that are owned by the current partition
+Create a tuple with local indices, in each array dimension, that are owned by the current partition
 
 # Warning : misleading for SparseArrays
 """
-function _owned_indices(A::HauntedArray)
-    return ntuple(d -> (d == 1) ? owned_rows(A) : collect(1:size(A, d)), ndims(A))
+function _own_to_local_ndims(A::HauntedArray)
+    return ntuple(d -> (d == 1) ? own_to_local_rows(A) : collect(1:size(A, d)), ndims(A))
+end
+
+"""
+Create a tuple with global indices, in each array dimension, that are owned by the current partition
+
+# Warning : misleading for SparseArrays
+"""
+function _own_to_global_ndims(A::HauntedArray)
+    return ntuple(d -> (d == 1) ? own_to_global(A) : local_to_global(A), ndims(A))
 end
 
 """
@@ -67,7 +82,7 @@ Build a view of the parent array, with the elements that are owned by the curren
 
 # Warning : misleading for SparseArrays
 """
-@inline owned_values(A::HauntedArray) = view(parent(A), owned_indices(A))
+@inline owned_values(A::HauntedArray) = view(parent(A), _own_to_local_ndims(A)...)
 
 """
 Transform a `Vector` index into a Vector of nd-CartesianIndices
@@ -96,16 +111,16 @@ function HauntedArray(
 
     # Additionnal infos
     mypart = MPI.Comm_rank(get_comm(exchanger)) + 1
-    oids = findall(part -> part == mypart, lid2part)
+    oid2lid = findall(part -> part == mypart, lid2part)
 
-    return HauntedArray(exchanger, lid2gid, lid2part, oids, ndims, T)
+    return HauntedArray(exchanger, lid2gid, lid2part, oid2lid, ndims, T)
 end
 
 function HauntedArray(
     exchanger::AbstractExchanger,
     lid2gid::Vector{I},
     lid2part::Vector{Int},
-    oids,
+    oid2lid,
     ndims::Int,
     T = Float64,
 ) where {I}
@@ -119,7 +134,7 @@ function HauntedArray(
         Array{T}(undef, dims)
     end
 
-    return HauntedArray(array, exchanger, lid2gid, lid2part, oids)
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid)
 end
 
 function HauntedVector(

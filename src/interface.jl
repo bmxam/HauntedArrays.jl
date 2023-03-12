@@ -21,7 +21,7 @@ function Base.similar(A::HauntedArray, ::Type{S}) where {S}
     # Parent similar
     array = similar(parent(A), S)
 
-    return HauntedArray(array, A.exchanger, A.lid2gid, A.lid2part, A.oids)
+    return HauntedArray(array, A.exchanger, A.lid2gid, A.lid2part, A.oid2lid)
 end
 
 Base.similar(A::HauntedArray{T}) where {T} = similar(A, T)
@@ -41,6 +41,6 @@ end
 
 function Base.zero(A::HauntedArray)
     B = similar(A)
-    parent(B) .= zero(array)
+    parent(B) .= zero(parent(B))
     return B
 end

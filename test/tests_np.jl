@@ -12,7 +12,6 @@ MPI.Initialized() || MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 np = MPI.Comm_size(comm)
-@assert np == 3 "tests to be run on 3 procs"
 
 rng = MersenneTwister(1234)
 
@@ -23,7 +22,7 @@ tmp_path = joinpath(out_dir, "tmp.msh")
     gen_rectangle_mesh(
         tmp_path,
         :tri;
-        nx = 5,
+        nx = 4,
         ny = 3,
         npartitions = np,
         split_files = true,
@@ -40,7 +39,7 @@ lid2gid, lid2part =
 # @one_at_a_time display(lid2gid)
 # @one_at_a_time display(lid2part)
 
-function test_gather_3p()
+function test_gather_np()
     # Vector
     Al = HauntedVector(comm, lid2gid, lid2part)
     nl = size(Al, 1)
@@ -71,23 +70,24 @@ function test_gather_3p()
         @show _Ag == Ag
     end
 
-    @only_root println("End of test_gather_3p")
+    @only_root println("End of test_gather_np")
 end
 
-test_ldiv_3p() = error("ldiv not implemented yet")
+test_ldiv_np() = error("ldiv not implemented yet")
 
-function test_mul_3p()
+function test_mul_np()
+    α = 100.0
     # error("there is an error in the product (and most likely in the gather)")
 
     xl = HauntedVector(comm, lid2gid, lid2part)
     nl = length(xl)
     no = length(owned_rows(xl))
     ng = MPI.Allreduce(no, MPI.SUM, comm)
-    _xg = rand(rng, ng)
+    _xg = α .* rand(rng, ng)
     xl .= _xg[lid2gid]
 
     Al = similar(xl, nl, nl)
-    __Ag = rand(rng, ng, ng)
+    __Ag = α .* rand(rng, ng, ng)
     for (i, j) in Iterators.product(1:length(Al.lid2gid), 1:length(Al.lid2gid))
         Al[i, j] = __Ag[Al.lid2gid[i], Al.lid2gid[j]]
     end
@@ -120,12 +120,12 @@ function test_mul_3p()
         end
     end
 
-    @only_root println("End of test_gather_3p")
+    @only_root println("End of test_mul_np")
 end
 
-test_gather_3p()
-test_mul_3p()
-# test_ldiv_3p()
+test_gather_np()
+test_mul_np()
+# test_ldiv_np()
 
 
 isinteractive() || MPI.Finalize()
