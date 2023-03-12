@@ -6,6 +6,9 @@ MPI.Initialized() || MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
+np = MPI.Comm_size(comm)
+
+@assert np == 1 "Tests to be ran on one proc only"
 
 """
 * test of `similar` from vector -> matrix
@@ -21,7 +24,7 @@ function test_mul!_1p()
     y = rand(n)
     B = rand(n, n)
 
-    x = HauntedArray(comm, lid2gid, lid2part)
+    x = HauntedVector(comm, lid2gid, lid2part)
     A = similar(x, n, n)
 
     x.array .= y

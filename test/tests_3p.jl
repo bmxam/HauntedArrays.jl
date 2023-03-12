@@ -19,18 +19,18 @@ rng = MersenneTwister(1234)
 out_dir = joinpath(@__DIR__, "../myout")
 tmp_path = joinpath(out_dir, "tmp.msh")
 
-@only_root begin
-    gen_rectangle_mesh(
-        tmp_path,
-        :tri;
-        nx = 4,
-        ny = 2,
-        npartitions = np,
-        split_files = true,
-        create_ghosts = true,
-    )
-end
-MPI.Barrier(comm)
+# @only_root begin
+#     gen_rectangle_mesh(
+#         tmp_path,
+#         :tri;
+#         nx = 4,
+#         ny = 2,
+#         npartitions = np,
+#         split_files = true,
+#         create_ghosts = true,
+#     )
+# end
+# MPI.Barrier(comm)
 dmesh = read_partitioned_msh(tmp_path, comm)
 fSpace = FunctionSpace(:Lagrange, 1)
 feSpace = Bcube.SingleFESpace(fSpace, parent(dmesh))
@@ -44,7 +44,7 @@ function test_gather_3p()
     # Vector
     Al = HauntedVector(comm, lid2gid, lid2part)
     nl = size(Al, 1)
-    no = length(owned_indices(Al))
+    no = length(owned_rows(Al))
     ng = MPI.Allreduce(no, MPI.SUM, comm)
     _Ag = rand(rng, ng)
 
@@ -77,11 +77,11 @@ end
 test_ldiv_3p() = error("ldiv not implemented yet")
 
 function test_mul_3p()
-    error("there is an error in the product (and most likely in the gather)")
+    # error("there is an error in the product (and most likely in the gather)")
 
     xl = HauntedVector(comm, lid2gid, lid2part)
     nl = length(xl)
-    no = length(owned_indices(xl))
+    no = length(owned_rows(xl))
     ng = MPI.Allreduce(no, MPI.SUM, comm)
     _xg = rand(rng, ng)
     xl .= _xg[lid2gid]
