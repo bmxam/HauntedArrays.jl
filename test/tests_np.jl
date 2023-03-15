@@ -42,8 +42,8 @@ lid2gid, lid2part =
 function test_gather_np()
     # Vector
     Al = HauntedVector(comm, lid2gid, lid2part)
-    nl = size(Al, 1)
-    no = length(owned_rows(Al))
+    nl = n_local_rows(Al)
+    no = n_own_rows(Al)
     ng = MPI.Allreduce(no, MPI.SUM, comm)
     _Ag = rand(rng, ng)
 
@@ -58,8 +58,8 @@ function test_gather_np()
     # Matrix
     Al = similar(Al, nl, nl)
     __Ag = rand(rng, ng, ng)
-    for (i, j) in Iterators.product(1:length(Al.lid2gid), 1:length(Al.lid2gid))
-        Al[i, j] = __Ag[Al.lid2gid[i], Al.lid2gid[j]]
+    for (i, j) in Iterators.product(1:nl, 1:nl)
+        Al[i, j] = __Ag[local_to_global(Al, i), local_to_global(Al, j)]
     end
 
     Ag = gather(Al)
@@ -80,16 +80,16 @@ function test_mul_np()
     # error("there is an error in the product (and most likely in the gather)")
 
     xl = HauntedVector(comm, lid2gid, lid2part)
-    nl = length(xl)
-    no = length(owned_rows(xl))
+    nl = n_local_rows(xl)
+    no = n_own_rows(xl)
     ng = MPI.Allreduce(no, MPI.SUM, comm)
     _xg = α .* rand(rng, ng)
     xl .= _xg[lid2gid]
 
     Al = similar(xl, nl, nl)
     __Ag = α .* rand(rng, ng, ng)
-    for (i, j) in Iterators.product(1:length(Al.lid2gid), 1:length(Al.lid2gid))
-        Al[i, j] = __Ag[Al.lid2gid[i], Al.lid2gid[j]]
+    for (i, j) in Iterators.product(1:nl, 1:nl)
+        Al[i, j] = __Ag[local_to_global(Al, i), local_to_global(Al, j)]
     end
 
     l2g = HauntedArrays.gather_lid2gid(Al)

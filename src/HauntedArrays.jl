@@ -9,7 +9,14 @@ export update_ghosts!
 
 include("./Array.jl")
 export HauntedArray,
-    HauntedVector, own_to_local_rows, owned_values, get_comm, local_to_global
+    HauntedVector,
+    own_to_local,
+    own_to_local_rows,
+    owned_values,
+    get_comm,
+    local_to_global,
+    n_local_rows,
+    n_own_rows
 
 include("./interface.jl")
 include("./collective.jl")

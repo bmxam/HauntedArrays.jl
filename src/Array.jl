@@ -52,6 +52,8 @@ end
 @inline own_to_global(A::HauntedArray, i) = A.lid2gid[A.oid2lid[i]]
 @inline local_to_part(A::HauntedArray) = A.lid2part
 @inline local_to_part(A::HauntedArray, i) = A.lid2part[i]
+@inline n_local_rows(A::HauntedArray) = length(local_to_global(A))
+@inline n_own_rows(A::HauntedArray) = length(own_to_local(A))
 
 """
 Return an array of the "rows" (i.e first dimension of the local array) that are truly owned
