@@ -14,7 +14,7 @@ function DiffEqBase.recursive_length(A::HauntedVector)
     MPI.Allreduce(n_own_rows(A), MPI.SUM, get_comm(A))
 end
 
-MPI.Init()
+MPI.Initialized() || MPI.Init()
 
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
@@ -56,11 +56,20 @@ end
 
 tspan = (0.0, 2.0)
 prob = ODEProblem(f!, q, tspan, p)
+
+# Explicit time integration
 sol = solve(prob, Tsit5())
 q = sol.u[end]
 
 update_ghosts!(q)
 @one_at_a_time @show owned_values(q)
 
-MPI.Finalize()
+# Implicit time integration
+sol = solve(prob, ImplicitEuler())
+q = sol.u[end]
+
+update_ghosts!(q)
+@one_at_a_time @show owned_values(q)
+
+isinteractive() || MPI.Finalize()
 end

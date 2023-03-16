@@ -33,7 +33,7 @@ function Base.similar(A::HauntedVector, ::Type{S}, dims::Dims{2}) where {S}
     n = length(parent(A))
 
     # Matrix case
-    @assert dims[1] == dims[2] "Only square Matrix supported for now"
+    @assert dims[1] == dims[2] "Only square Matrix supported for now ($dims)"
     @assert dims[1] == n "Number of rows must match number of elts of the vector"
 
     return HauntedArray(get_comm(A), A.lid2gid, A.lid2part, 2, S)
