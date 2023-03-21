@@ -64,12 +64,5 @@ q = sol.u[end]
 update_ghosts!(q)
 @one_at_a_time @show owned_values(q)
 
-# Implicit time integration
-sol = solve(prob, ImplicitEuler())
-q = sol.u[end]
-
-update_ghosts!(q)
-@one_at_a_time @show owned_values(q)
-
 isinteractive() || MPI.Finalize()
 end
