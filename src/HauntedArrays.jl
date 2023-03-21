@@ -10,6 +10,7 @@ export update_ghosts!
 include("./Array.jl")
 export HauntedArray,
     HauntedVector,
+    HauntedMatrix,
     own_to_local,
     own_to_local_rows,
     owned_values,
