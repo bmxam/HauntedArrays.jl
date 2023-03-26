@@ -11,6 +11,7 @@ include("./Array.jl")
 export HauntedArray,
     HauntedVector,
     HauntedMatrix,
+    own_to_global,
     own_to_local,
     own_to_local_rows,
     owned_values,
@@ -27,5 +28,6 @@ include("./reductions.jl")
 include("./broadcast.jl")
 include("./algebra.jl")
 
+include("./misc.jl")
 
 end
