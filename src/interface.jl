@@ -21,8 +21,8 @@ function Base.similar(A::HauntedArray, ::Type{S}) where {S}
     # Parent similar
     array = similar(parent(A), S)
 
-    # Cache similar
-    cache = similar(get_cache(A))
+    # Copy the cache
+    cache = copy_cache(get_cache(A))
 
     return HauntedArray(array, A.exchanger, A.lid2gid, A.lid2part, A.oid2lid, cache)
 end
@@ -40,9 +40,8 @@ function Base.similar(A::HauntedVector, ::Type{S}, dims::Dims{2}) where {S}
     @assert dims[1] == n "Number of rows must match number of elts of the vector"
 
     # Cache -> we don't reuse the infos
-    # cache = similar(get_cache(A), S, dims)
 
-    return HauntedArray(get_comm(A), A.lid2gid, A.lid2part, 2, S, cache)
+    return HauntedArray(get_comm(A), A.lid2gid, A.lid2part, 2, S, typeof(get_cache(A)))
 end
 
 function Base.zero(A::HauntedArray)

@@ -1,5 +1,4 @@
-abstract type AbstractCache{N} end
-@inline get_ndims(::AbstractCache{N}) where {N} = N
+abstract type AbstractCache end
 
 function build_cache(
     C::Type{AbstractCache},
@@ -13,25 +12,20 @@ function build_cache(
     error("`build_cache` not implemented for $C")
 end
 
-Base.similar(c::AbstractCache) = error("`similar` not implemented for $(typeof(c))")
-function Base.similar(c::AbstractCache, ::Type{S}, ::Dims{N}) where {S,N}
-    error("`similar` not implemented for $(typeof(c))")
-end
-Base.similar(c::AbstractCache{N}, ::Type{S}, dims::Dims{N}) where {S,N} = similar(c, S)
+copy_cache(c::AbstractCache) = error("`copy_cache` not implemented for $(typeof(c))")
 
-struct EmptyCache{N} <: AbstractCache{N} end
+struct EmptyCache <: AbstractCache end
 
 function build_cache(
-    ::Type{EmptyCache{N}},
+    ::Type{EmptyCache},
     ::AbstractExchanger,
     ::Vector{I},
     ::Vector{Int},
     _,
     ::Int,
     _,
-) where {N,I}
-    return EmptyCache{N}()
+) where {I}
+    return EmptyCache()
 end
 
-Base.similar(::EmptyCache{N}) where {N} = EmptyCache{N}()
-Base.similar(::EmptyCache{1}, ::Type{S}, dims::Dims{2}) where {S} = EmptyCache{2}()
+copy_cache(::EmptyCache) = EmptyCache()

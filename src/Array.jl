@@ -117,7 +117,7 @@ function HauntedArray(
     lid2part::Vector{Int},
     ndims::Int,
     T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache{ndims},
+    C::Type{<:AbstractCache} = EmptyCache,
 ) where {I}
     @assert ndims <= 2 "`ndims > 2 is not yet supported"
 
@@ -137,7 +137,7 @@ function HauntedArray(
     oid2lid::Vector{I},
     ndims::Int,
     T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache{ndims},
+    C::Type{<:AbstractCache} = EmptyCache,
 ) where {I}
     n = length(lid2gid)
     dims = ntuple(i -> n, ndims)
@@ -160,8 +160,7 @@ function HauntedVector(
     lid2gid::Vector{I},
     lid2part::Vector{Int},
     T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache{1},
+    C::Type{<:AbstractCache} = EmptyCache,
 ) where {I}
-    @show C
     HauntedArray(comm, lid2gid, lid2part, 1, T, C)
 end
