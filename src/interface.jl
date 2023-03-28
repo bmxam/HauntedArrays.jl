@@ -21,7 +21,10 @@ function Base.similar(A::HauntedArray, ::Type{S}) where {S}
     # Parent similar
     array = similar(parent(A), S)
 
-    return HauntedArray(array, A.exchanger, A.lid2gid, A.lid2part, A.oid2lid)
+    # Cache similar
+    cache = similar(get_cache(A))
+
+    return HauntedArray(array, A.exchanger, A.lid2gid, A.lid2part, A.oid2lid, cache)
 end
 
 Base.similar(A::HauntedArray{T}) where {T} = similar(A, T)
@@ -36,7 +39,10 @@ function Base.similar(A::HauntedVector, ::Type{S}, dims::Dims{2}) where {S}
     @assert dims[1] == dims[2] "Only square Matrix supported for now ($dims)"
     @assert dims[1] == n "Number of rows must match number of elts of the vector"
 
-    return HauntedArray(get_comm(A), A.lid2gid, A.lid2part, 2, S)
+    # Cache -> we don't reuse the infos
+    # cache = similar(get_cache(A), S, dims)
+
+    return HauntedArray(get_comm(A), A.lid2gid, A.lid2part, 2, S, cache)
 end
 
 function Base.zero(A::HauntedArray)

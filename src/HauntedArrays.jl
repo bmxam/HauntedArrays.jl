@@ -7,6 +7,8 @@ include("./parallel_factory.jl")
 include("./Exchanger.jl")
 export update_ghosts!
 
+include("./cache.jl")
+
 include("./Array.jl")
 export HauntedArray,
     HauntedVector,
@@ -15,6 +17,7 @@ export HauntedArray,
     own_to_local,
     own_to_local_rows,
     owned_values,
+    get_cache,
     get_comm,
     local_to_global,
     n_local_rows,

@@ -20,8 +20,8 @@ each part owns a certain number of rows (but all the columns for these rows).
 
 For now, the `exchanger` is only relevant for HauntedVector.
 """
-struct HauntedArray{T,N,E,I} <:
-       AbstractHauntedArray{T,N} where {E<:AbstractExchanger,I<:Integer}
+struct HauntedArray{T,N,E,I,C} <:
+       AbstractHauntedArray{T,N} where {E<:AbstractExchanger,I<:Integer,C<:AbstractCache}
     # The complete array on the current rank, including ghosts
     array::Array{T,N}
 
@@ -37,8 +37,18 @@ struct HauntedArray{T,N,E,I} <:
     # Own to local element indices, in the first dimension of `array`, that are owned by this rank
     oid2lid::Vector{I}
 
-    function HauntedArray(a::AbstractArray{T,N}, ex, l2g, l2p, o2l) where {T,N}
-        new{T,N,typeof(ex),eltype(l2g)}(a, ex, l2g, l2p, o2l)
+    # Cache
+    cache::C
+
+    function HauntedArray(
+        a::AbstractArray{T,N},
+        ex::AbstractExchanger,
+        l2g::Vector{I},
+        l2p::Vector{Int},
+        o2l::Vector{I},
+        c::AbstractCache,
+    ) where {T,N,I}
+        new{T,N,typeof(ex),I,typeof(c)}(a, ex, l2g, l2p, o2l, c)
     end
 end
 
@@ -54,6 +64,7 @@ end
 @inline local_to_part(A::HauntedArray, i) = A.lid2part[i]
 @inline n_local_rows(A::HauntedArray) = length(local_to_global(A))
 @inline n_own_rows(A::HauntedArray) = length(own_to_local(A))
+@inline get_cache(A::HauntedArray) = A.cache
 
 """
 Return an array of the "rows" (i.e first dimension of the local array) that are truly owned
@@ -106,6 +117,7 @@ function HauntedArray(
     lid2part::Vector{Int},
     ndims::Int,
     T = Float64,
+    C::Type{<:AbstractCache} = EmptyCache{ndims},
 ) where {I}
     @assert ndims <= 2 "`ndims > 2 is not yet supported"
 
@@ -115,16 +127,17 @@ function HauntedArray(
     mypart = MPI.Comm_rank(get_comm(exchanger)) + 1
     oid2lid = findall(part -> part == mypart, lid2part)
 
-    return HauntedArray(exchanger, lid2gid, lid2part, oid2lid, ndims, T)
+    return HauntedArray(exchanger, lid2gid, lid2part, oid2lid, ndims, T, C)
 end
 
 function HauntedArray(
     exchanger::AbstractExchanger,
     lid2gid::Vector{I},
     lid2part::Vector{Int},
-    oid2lid,
+    oid2lid::Vector{I},
     ndims::Int,
     T = Float64,
+    C::Type{<:AbstractCache} = EmptyCache{ndims},
 ) where {I}
     n = length(lid2gid)
     dims = ntuple(i -> n, ndims)
@@ -136,7 +149,10 @@ function HauntedArray(
         Array{T}(undef, dims)
     end
 
-    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid)
+    # Build the cache
+    cache = build_cache(C, exchanger, lid2gid, lid2part, oid2lid, ndims, T)
+
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cache)
 end
 
 function HauntedVector(
@@ -144,6 +160,8 @@ function HauntedVector(
     lid2gid::Vector{I},
     lid2part::Vector{Int},
     T = Float64,
+    C::Type{<:AbstractCache} = EmptyCache{1},
 ) where {I}
-    HauntedArray(comm, lid2gid, lid2part, 1, T)
+    @show C
+    HauntedArray(comm, lid2gid, lid2part, 1, T, C)
 end
