@@ -2,6 +2,7 @@ module HauntedArrays
 using MPI
 using LinearAlgebra
 using MPIUtils
+using Random
 
 include("./parallel_factory.jl")
 include("./Exchanger.jl")

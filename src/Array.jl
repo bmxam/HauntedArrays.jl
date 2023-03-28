@@ -159,8 +159,8 @@ function HauntedVector(
     comm::MPI.Comm,
     lid2gid::Vector{I},
     lid2part::Vector{Int},
-    T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache,
+    T = Float64;
+    cacheType::Type{<:AbstractCache} = EmptyCache,
 ) where {I}
-    HauntedArray(comm, lid2gid, lid2part, 1, T, C)
+    HauntedArray(comm, lid2gid, lid2part, 1, T, cacheType)
 end
