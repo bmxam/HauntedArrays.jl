@@ -1,8 +1,8 @@
 abstract type AbstractExchanger end
 
 """
-* `lid` stands for "local index" or "local identifier", meaning "on the current partition"
-* `gid` stands for "global index" or "global identifier", meaning "all ranks merged"
+  - `lid` stands for "local index" or "local identifier", meaning "on the current partition"
+  - `gid` stands for "global index" or "global identifier", meaning "all ranks merged"
 
 `I` maybe be `CartesianIndex` for N > 1, or `Int` for vectors
 """
@@ -67,18 +67,19 @@ function update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
     recv_reqs = MPI.Request[]
     for (ipart, buffer) in toberecv_buffers
         src = ipart - 1
-        push!(recv_reqs, MPI.Irecv!(buffer, src, 0, comm))
+        push!(recv_reqs, MPI.Irecv!(buffer, comm; source = src))
     end
 
     # Send
     send_reqs = MPI.Request[]
     for (ipart, buffer) in tobesent_buffers
         dest = ipart - 1
-        push!(send_reqs, MPI.Isend(buffer, dest, 0, comm))
+        push!(send_reqs, MPI.Isend(buffer, comm; dest = dest))
     end
 
     # Wait for comms to complete
-    MPI.Waitall!(vcat(recv_reqs, send_reqs))
+    # @one_at_a_time println("before waitall")
+    MPI.Waitall(vcat(recv_reqs, send_reqs))
 
     # Update cellvars
     for (ipart, buffer) in toberecv_buffers
@@ -89,7 +90,7 @@ end
 
 function check(comm, lid2part, root = 0)
     _lparts = unique(lid2part)
-    all_parts = MPI.Gather(_lparts, root, comm)
+    all_parts = MPI.Gather(_lparts, comm; root = root)
 
     if MPI.Comm_rank(comm) == root
         @assert length(unique(all_parts)) == MPI.Comm_size(comm) "The comm size is different from the number of declared partitions"

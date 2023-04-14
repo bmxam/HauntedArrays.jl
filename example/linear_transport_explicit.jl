@@ -23,7 +23,7 @@ np = MPI.Comm_size(comm)
 mypart = rank + 1
 Δx = lx / (np * nx - 1)
 
-lid2gid, lid2part = HauntedArrays.generate_1d_partitioning(nx, mypart)
+lid2gid, lid2part = HauntedArrays.generate_1d_partitioning(nx, mypart, np)
 
 @one_at_a_time @show lid2gid
 @one_at_a_time @show lid2part

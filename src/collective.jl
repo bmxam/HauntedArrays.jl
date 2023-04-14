@@ -49,7 +49,7 @@ function gather(A::HauntedArray, root = 0)
     # number of elts)
     _values = similar(cartOwnedValues, nmax)
     _values[1:nloc] .= cartOwnedValues
-    _values = MPI.Gather(_values, root, comm)
+    _values = MPI.Gather(_values, comm; root = root)
 
     lid2gid = gather_lid2gid(A, root)
 
@@ -91,7 +91,7 @@ function gather_lid2gid(A::HauntedArray, root = 0)
     # number of elts)
     _lid2gid = similar(cartOwn2Glo, nmax)
     _lid2gid[1:nloc] .= cartOwn2Glo
-    _lid2gid = MPI.Gather(_lid2gid, root, comm)
+    _lid2gid = MPI.Gather(_lid2gid, comm; root = root)
 
     if MPI.Comm_rank(comm) == root
         ntot = sum(n_by_rank)

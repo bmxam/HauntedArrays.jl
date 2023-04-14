@@ -1,3 +1,6 @@
+"""
+Run on 2 procs only
+"""
 module test
 using MPI
 using MPIUtils
@@ -9,6 +12,8 @@ MPI.Initialized() || MPI.Init()
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 np = MPI.Comm_size(comm)
+
+@assert np == 2 "example only for 2 procs"
 
 mypart = rank + 1
 
