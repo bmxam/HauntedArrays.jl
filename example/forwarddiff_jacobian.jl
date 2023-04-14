@@ -7,6 +7,8 @@ using MPIUtils
 using HauntedArrays
 using ForwardDiff
 
+error("this example is useless since there is no `update_ghosts` appearing in `f`")
+
 MPI.Initialized() || MPI.Init()
 
 comm = MPI.COMM_WORLD

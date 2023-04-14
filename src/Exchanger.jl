@@ -47,9 +47,13 @@ function MPIExchanger(
 end
 
 """
+    update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
+
 Synchronize ghost values using MPI communications.
 
 Version without buffer
+
+TODO : use `MPI.MultiRequest` instead of MPI.Request[]
 """
 function update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
     # Alias
