@@ -62,15 +62,20 @@ function update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
     toberecv_part2lid = exchanger.toberecv_part2lid
 
     # Buffers
-    T = eltype(array) # same type for all variables for now...
-    tobesent_buffers = Dict(ipart => array[lids] for (ipart, lids) in tobesent_part2lid)
-    toberecv_buffers =
-        Dict(ipart => zeros(T, length(lids)) for (ipart, lids) in toberecv_part2lid)
+    tobesent_buffers = Dict(
+        ipart => _array_to_exchanged_values(array, lids) for
+        (ipart, lids) in tobesent_part2lid
+    )
+    toberecv_buffers = Dict(
+        ipart => zeros(_array_to_exchanged_type(array), length(lids)) for
+        (ipart, lids) in toberecv_part2lid
+    )
 
     # Receive
     recv_reqs = MPI.Request[]
     for (ipart, buffer) in toberecv_buffers
         src = ipart - 1
+        println("receiving $(eltype(buffer))")
         push!(recv_reqs, MPI.Irecv!(buffer, comm; source = src))
     end
 
@@ -78,17 +83,47 @@ function update_ghosts!(array::AbstractArray, exchanger::MPIExchanger)
     send_reqs = MPI.Request[]
     for (ipart, buffer) in tobesent_buffers
         dest = ipart - 1
+        println("sending $(eltype(buffer))")
         push!(send_reqs, MPI.Isend(buffer, comm; dest = dest))
     end
 
     # Wait for comms to complete
-    # @one_at_a_time println("before waitall")
+    @one_at_a_time println("before waitall")
     MPI.Waitall(vcat(recv_reqs, send_reqs))
 
     # Update cellvars
     for (ipart, buffer) in toberecv_buffers
         lids = toberecv_part2lid[ipart]
-        array[lids] .= buffer
+        _exchanged_values_to_array!(array, buffer, lids)
+    end
+end
+
+_array_to_exchanged_type(::AbstractArray{T}) where {T} = T
+_array_to_exchanged_type(::AbstractArray{ForwardDiff.Dual{T}}) where {T} = T
+
+_array_to_exchanged_values(x::AbstractArray, lids::Vector{I}) where {I} = x[lids]
+function _array_to_exchanged_values(
+    x::AbstractArray{ForwardDiff.Dual},
+    lids::Vector{I},
+) where {I}
+    ForwardDiff.value.(view(x, lids))
+    # [ForwardDiff.value(_x) for _x in view(x, i)]
+end
+
+function _exchanged_values_to_array!(
+    y::AbstractArray,
+    x::AbstractArray,
+    lids::Vector{I},
+) where {I}
+    y[lids] .= x
+end
+function _exchanged_values_to_array!(
+    y::AbstractArray{ForwardDiff.Dual{T}},
+    x::AbstractArray,
+    lids::Vector{I},
+) where {T,I}
+    for (i, li) in enumerate(lids)
+        y[li] = ForwardDiff.Dual{T}(x[i], ForwardDiff.partials(y[li]))
     end
 end
 

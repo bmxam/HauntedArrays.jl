@@ -3,6 +3,7 @@ using MPI
 using LinearAlgebra
 using MPIUtils
 using Random
+using ForwardDiff
 
 include("./parallel_factory.jl")
 include("./Exchanger.jl")
