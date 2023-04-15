@@ -47,7 +47,7 @@ struct HauntedArray{T,N,A,E,I,C} <: AbstractHauntedArray{T,N}
         o2l::Vector{I},
         c::AbstractCache,
     ) where {T,N,I<:Integer}
-        new{T,N,typeof(A),typeof(ex),I,typeof(c)}(a, ex, l2g, l2p, o2l, c)
+        new{T,N,typeof(a),typeof(ex),I,typeof(c)}(a, ex, l2g, l2p, o2l, c)
     end
 end
 
