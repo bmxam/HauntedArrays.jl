@@ -64,6 +64,8 @@ end
 @inline n_local_rows(A::HauntedArray) = length(local_to_global(A))
 @inline n_own_rows(A::HauntedArray) = length(own_to_local(A))
 @inline get_cache(A::HauntedArray) = A.cache
+@inline get_part(A::HauntedArray) = MPI.Comm_rank(get_comm(A)) + 1
+@inline owned_by_me(A::HauntedArray, i) = local_to_part(A, i) == get_part(A)
 
 """
 Return an array of the "rows" (i.e first dimension of the local array) that are truly owned
