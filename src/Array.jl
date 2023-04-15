@@ -20,10 +20,9 @@ each part owns a certain number of rows (but all the columns for these rows).
 
 For now, the `exchanger` is only relevant for HauntedVector.
 """
-struct HauntedArray{T,N,E,I,C} <:
-       AbstractHauntedArray{T,N} where {E<:AbstractExchanger,I<:Integer,C<:AbstractCache}
+struct HauntedArray{T,N,A,E,I,C} <: AbstractHauntedArray{T,N}
     # The complete array on the current rank, including ghosts
-    array::Array{T,N}
+    array::A
 
     # Structure to enable exchanging ghost values
     exchanger::E
@@ -47,8 +46,8 @@ struct HauntedArray{T,N,E,I,C} <:
         l2p::Vector{Int},
         o2l::Vector{I},
         c::AbstractCache,
-    ) where {T,N,I}
-        new{T,N,typeof(ex),I,typeof(c)}(a, ex, l2g, l2p, o2l, c)
+    ) where {T,N,I<:Integer}
+        new{T,N,typeof(A),typeof(ex),I,typeof(c)}(a, ex, l2g, l2p, o2l, c)
     end
 end
 
@@ -149,8 +148,19 @@ function HauntedArray(
         Array{T}(undef, dims)
     end
 
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, C)
+end
+
+function HauntedArray(
+    array::AbstractArray{T,N},
+    exchanger::AbstractExchanger,
+    lid2gid::Vector{I},
+    lid2part::Vector{Int},
+    oid2lid::Vector{I},
+    C::Type{<:AbstractCache} = EmptyCache,
+) where {T,N,I}
     # Build the cache
-    cache = build_cache(C, exchanger, lid2gid, lid2part, oid2lid, ndims, T)
+    cache = build_cache(C, exchanger, lid2gid, lid2part, oid2lid, N, T)
 
     return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cache)
 end
@@ -163,4 +173,19 @@ function HauntedVector(
     cacheType::Type{<:AbstractCache} = EmptyCache,
 ) where {I}
     HauntedArray(comm, lid2gid, lid2part, 1, T, cacheType)
+end
+
+"""
+Build a HauntedMatrix with values of `parent_matrix` and exchanger obtained from the
+HauntedVector `x`
+"""
+function HauntedMatrix(parent_matrix::AbstractArray, x::HauntedVector)
+    return HauntedArray(
+        parent_matrix,
+        get_exchanger(x), # exchanger not relevant for HauntedMatrix
+        local_to_global(x),
+        local_to_part(x),
+        own_to_local(x),
+        typeof(get_cache(x)),
+    )
 end

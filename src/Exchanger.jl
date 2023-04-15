@@ -101,46 +101,46 @@ function check(comm, lid2part, root = 0)
     end
 end
 
-"""
-Build a "Matrix" exchanger from a "Vector" exchanger
-"""
-function matrix_from_vector(exchanger::MPIExchanger{I}, n::Int, vec_lid2part) where {I}
-    comm = get_comm(exchanger)
-    mypart = MPI.Comm_rank(comm) + 1
+# """
+# Build a "Matrix" exchanger from a "Vector" exchanger
+# """
+# function matrix_from_vector(exchanger::MPIExchanger{I}, n::Int, vec_lid2part) where {I}
+#     comm = get_comm(exchanger)
+#     mypart = MPI.Comm_rank(comm) + 1
 
-    # Reverse toberecv_part2lid and apply min function
-    toberecv_lid2minpart = Dict{I,Int}()
-    for (part, lids) in exchanger.toberecv_part2lid
-        for lid in lids
-            if lid in keys(toberecv_lid2minpart)
-                toberecv_lid2minpart[lid] = minimum(toberecv_lid2minpart[lid], part)
-            else
-                toberecv_lid2minpart[lid] = part
-            end
-        end
-    end
+#     # Reverse toberecv_part2lid and apply min function
+#     toberecv_lid2minpart = Dict{I,Int}()
+#     for (part, lids) in exchanger.toberecv_part2lid
+#         for lid in lids
+#             if lid in keys(toberecv_lid2minpart)
+#                 toberecv_lid2minpart[lid] = minimum(toberecv_lid2minpart[lid], part)
+#             else
+#                 toberecv_lid2minpart[lid] = part
+#             end
+#         end
+#     end
 
-    # First, we init the `lid2part` with only the current partition number
-    # i.e current partition owned all its indices
-    mat_lid2part = mypart .* ones(Int, n, n)
+#     # First, we init the `lid2part` with only the current partition number
+#     # i.e current partition owned all its indices
+#     mat_lid2part = mypart .* ones(Int, n, n)
 
-    # Then we loop on rows whose index are not owned by the current partition
-    # For each row-element:
-    #   * if the column index is recv from no-one, the element belongs to the current
-    #   partition
-    #   * if the column index is recv from one or more parts, the element belongs to
-    #   smallest partition id
-    #
-    # Finally, each diagonal element belongs to the partition according to lid2part
-    for (li, part_i) in enumerate(vec_lid2part)
-        if part_i != mypart
-            for (lj, part_j) in toberecv_lid2minpart
-                mat_lid2part[li, lj] = part_j
-            end
-        end
+#     # Then we loop on rows whose index are not owned by the current partition
+#     # For each row-element:
+#     #   * if the column index is recv from no-one, the element belongs to the current
+#     #   partition
+#     #   * if the column index is recv from one or more parts, the element belongs to
+#     #   smallest partition id
+#     #
+#     # Finally, each diagonal element belongs to the partition according to lid2part
+#     for (li, part_i) in enumerate(vec_lid2part)
+#         if part_i != mypart
+#             for (lj, part_j) in toberecv_lid2minpart
+#                 mat_lid2part[li, lj] = part_j
+#             end
+#         end
 
-        mat_lid2part[li, li] = vec_lid2part[li]
-    end
+#         mat_lid2part[li, li] = vec_lid2part[li]
+#     end
 
-    return mat_lid2part
-end
+#     return mat_lid2part
+# end
