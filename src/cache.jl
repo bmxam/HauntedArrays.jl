@@ -2,12 +2,11 @@ abstract type AbstractCache end
 
 function build_cache(
     C::Type{AbstractCache},
+    array::AbstractArray,
     exchanger::AbstractExchanger,
     lid2gid::Vector{I},
     lid2part::Vector{Int},
     oid2lid,
-    ndims::Int,
-    T,
 ) where {I<:Integer}
     error("`build_cache` not implemented for $C")
 end
@@ -18,11 +17,10 @@ struct EmptyCache <: AbstractCache end
 
 function build_cache(
     ::Type{EmptyCache},
+    ::AbstractArray,
     ::AbstractExchanger,
     ::Vector{I},
     ::Vector{Int},
-    _,
-    ::Int,
     _,
 ) where {I}
     return EmptyCache()

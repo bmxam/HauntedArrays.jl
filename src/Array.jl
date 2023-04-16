@@ -162,7 +162,7 @@ function HauntedArray(
     C::Type{<:AbstractCache} = EmptyCache,
 ) where {T,N,I}
     # Build the cache
-    cache = build_cache(C, exchanger, lid2gid, lid2part, oid2lid, N, T)
+    cache = build_cache(C, array, exchanger, lid2gid, lid2part, oid2lid)
 
     return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cache)
 end
