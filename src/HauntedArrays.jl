@@ -22,6 +22,7 @@ export HauntedArray,
     get_cache,
     get_comm,
     local_to_global,
+    local_to_part,
     n_local_rows,
     n_own_rows
 
