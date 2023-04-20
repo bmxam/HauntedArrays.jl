@@ -101,6 +101,14 @@ function check(comm, lid2part, root = 0)
     end
 end
 
+"""
+Build a new exchanger by merging the input exchangers
+"""
+function merge_exchangers(exchangers)
+    comm = get_comm(exchangers[1])
+    error("to be completed")
+end
+
 # """
 # Build a "Matrix" exchanger from a "Vector" exchanger
 # """
