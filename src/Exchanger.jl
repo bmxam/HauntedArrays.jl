@@ -6,13 +6,22 @@ abstract type AbstractExchanger end
 
 `I` maybe be `CartesianIndex` for N > 1, or `Int` for vectors
 """
-struct MPIExchanger{I} <: AbstractExchanger where {I}
+struct MPIExchanger{I} <: AbstractExchanger
     comm::MPI.Comm
     tobesent_part2lid::Dict{Int,Vector{I}} # to be sent to others : part => lid
     toberecv_part2lid::Dict{Int,Vector{I}} # to be recv from others : part => lid
+
+    function MPIExchanger(
+        comm::MPI.Comm,
+        tobesent_part2lid::Dict{Int,Vector{I}},
+        toberecv_part2lid::Dict{Int,Vector{I}},
+    ) where {I}
+        new{I}(comm, tobesent_part2lid, toberecv_part2lid)
+    end
 end
 
 @inline get_comm(exchanger::MPIExchanger) = exchanger.comm
+@inline get_index_type(::MPIExchanger{I}) where {I} = I
 
 function MPIExchanger(
     comm::MPI.Comm,
@@ -43,7 +52,7 @@ function MPIExchanger(
         toberecv_part2lid[ipart] = [CartesianIndex(Tuple(gid2lid[gi])) for gi in gids] # need `CartesianIndex(Tuple)` for scalar case
     end
 
-    return MPIExchanger{I}(comm, tobesent_part2lid, toberecv_part2lid)
+    return MPIExchanger(comm, tobesent_part2lid, toberecv_part2lid)
 end
 
 """
@@ -103,10 +112,51 @@ end
 
 """
 Build a new exchanger by merging the input exchangers
+
+`s2m` stands for "single to multi" gives, for each exchanger,
+a single-exchanger numbering to a multi-exchanger numbering
 """
-function merge_exchangers(exchangers)
-    comm = get_comm(exchangers[1])
-    error("to be completed")
+function merge_exchangers(
+    exchangers::NTuple{N,MPIExchanger{I}},
+    s2m::NTuple{N,Vector{I}},
+) where {N,I}
+    _tobesent_part2lid = typeof(exchangers[1].tobesent_part2lid)[]
+    _toberecv_part2lid = typeof(exchangers[1].toberecv_part2lid)[]
+    for (i, exchanger) in enumerate(exchangers)
+        d1 = exchanger.tobesent_part2lid
+        push!(_tobesent_part2lid, Dict(zip(keys(d1), s2m[i][values(d1)])))
+
+        d2 = exchanger.toberecv_part2lid
+        push!(_toberecv_part2lid, Dict(zip(keys(d2), s2m[i][values(d2)])))
+    end
+
+    tobesent_part2lid = mergewith(vcat, _tobesent_part2lid...)
+    toberecv_part2lid = mergewith(vcat, _toberecv_part2lid...)
+
+    return MPIExchanger(get_comm(exchangers[1]), tobesent_part2lid, toberecv_part2lid)
+end
+
+"""
+Build a new exchanger from an existing exchanger by keeping only some local indices
+"""
+function filtered_exchanger(exchanger::MPIExchanger{I}, lids) where {I}
+    tobesent_part2lid = Dict{Int,Vector{I}}()
+    for (part, _lids) in exchanger.tobesent_part2lid
+        i = intersect(_lids, lids)
+        if length(i) > 0
+            tobesent_part2lid[part] = i
+        end
+    end
+
+    toberecv_part2lid = Dict{Int,Vector{I}}()
+    for (part, _lids) in exchanger.toberecv_part2lid
+        i = intersect(_lids, lids)
+        if length(i) > 0
+            toberecv_part2lid[part] = i
+        end
+    end
+
+    return MPIExchanger(get_comm(exchanger), tobesent_part2lid, toberecv_part2lid)
 end
 
 # """

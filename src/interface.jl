@@ -49,3 +49,27 @@ function Base.zero(A::HauntedArray)
     parent(B) .= zero(parent(B))
     return B
 end
+
+function Base.view(::HauntedArray, I::Vararg{Any,N}) where {N}
+    @show I
+    error("not implemented yet")
+end
+
+function Base.view(A::HauntedVector, I::AbstractVector)
+    array = view(parent(A), I)
+    exchanger = filtered_exchanger(get_exchanger(A), I)
+    lid2gid = local_to_global(A)[I]
+    lid2part = local_to_part(A)[I]
+    cacheType = typeof(get_cache(A))
+
+    # Build new oid2lid
+    old_li_to_old_oi = zero(local_to_global(A))
+    for (oi, li) in enumerate(own_to_local(A))
+        old_li_to_old_oi[li] = oi
+    end
+    new_li_to_old_li = I
+    new_li_to_old_oi = view(old_li_to_old_oi, new_li_to_old_li)
+    oid2lid = sortperm(filter(x -> x > 0, new_li_to_old_oi))
+
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cacheType)
+end
