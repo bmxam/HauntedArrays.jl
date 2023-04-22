@@ -10,7 +10,9 @@ function Base.similar(
     return similar(A, ElType) # not sure this is enough
 end
 
-"`A = find_ha(As)` returns the first HauntedVector among the arguments."
+"""
+`A = find_ha(As)` returns the first HauntedVector among the arguments.
+"""
 find_ha(bc::Base.Broadcast.Broadcasted) = find_ha(bc.args)
 find_ha(args::Tuple) = find_ha(find_ha(args[1]), Base.tail(args))
 find_ha(x) = x
