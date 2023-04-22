@@ -51,8 +51,7 @@ function Base.zero(A::HauntedArray)
 end
 
 function Base.view(::HauntedArray, I::Vararg{Any,N}) where {N}
-    @show I
-    error("not implemented yet")
+    error("`view` with I = $I not implemented yet")
 end
 
 function Base.view(A::HauntedVector, I::AbstractVector)
