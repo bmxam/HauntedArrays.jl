@@ -114,8 +114,8 @@ function _identify_src_partitions(dest_parts::Vector{Int}, comm::MPI.Comm)
 
     # Second, send ghost partitions id for each proc
     sendrecvbuf = zeros(Int, sum(n_dest_parts_glo))
-    offset = sum(n_dest_parts_glo[1:my_part-1])
-    sendrecvbuf[offset+1:offset+n_dest_parts_loc] .= dest_parts
+    offset = sum(n_dest_parts_glo[1:(my_part - 1)])
+    sendrecvbuf[(offset + 1):(offset + n_dest_parts_loc)] .= dest_parts
     MPI.Allgatherv!(MPI.VBuffer(sendrecvbuf, n_dest_parts_glo), comm)
 
     # Filter source partition targeting local partition
@@ -126,8 +126,8 @@ function _identify_src_partitions(dest_parts::Vector{Int}, comm::MPI.Comm)
         (ipart == my_part) && continue
 
         # Check if `my_part` is present in the ghost parts of `ipart`
-        offset = sum(n_dest_parts_glo[1:ipart-1])
-        if my_part ∈ sendrecvbuf[offset+1:offset+n_dest_parts_glo[ipart]]
+        offset = sum(n_dest_parts_glo[1:(ipart - 1)])
+        if my_part ∈ sendrecvbuf[(offset + 1):(offset + n_dest_parts_glo[ipart])]
             push!(src_parts, ipart)
         end
     end
@@ -155,7 +155,7 @@ function _identify_src_ndofs(
     n_src_dofs = [[0] for _ in src_parts] # need a Vector{Vector{Int}} because MPI.Irecv! can't handle an Int but only Vector{Int}
     for (i, ipart) in enumerate(src_parts)
         src = ipart - 1
-        push!(recv_reqs, MPI.Irecv!(n_src_dofs[i], src, 0, comm))
+        push!(recv_reqs, MPI.Irecv!(n_src_dofs[i], comm; source = src))
     end
 
     # Send the number of ghost elts to each ghost partition
@@ -165,10 +165,10 @@ function _identify_src_ndofs(
         n_dest_dofs = count(==(ipart), values(destdof2part))
         toberecv_part2nelts[ipart] = n_dest_dofs
         dest = ipart - 1
-        push!(send_reqs, MPI.Isend(n_dest_dofs, dest, 0, comm))
+        push!(send_reqs, MPI.Isend(n_dest_dofs, comm; dest = dest))
     end
 
-    MPI.Waitall!(vcat(recv_reqs, send_reqs))
+    MPI.Waitall(vcat(recv_reqs, send_reqs))
     #MPI.Waitall!(recv_reqs) # no need to wait for the send_reqs to achieve
 
     tobesent_part2nelts =
@@ -193,7 +193,7 @@ function _identify_asked_gids!(
     send_reqs = MPI.Request[]
     for (ipart, buffer) in tobesent_part2gids
         src = ipart - 1
-        push!(send_reqs, MPI.Irecv!(buffer, src, 0, comm))
+        push!(send_reqs, MPI.Irecv!(buffer, comm; source = src))
     end
 
     # Send ghost elts ids
@@ -201,11 +201,18 @@ function _identify_asked_gids!(
     recv_reqs = MPI.Request[]
     for (ipart, buffer) in toberecv_part2gids
         dest = ipart - 1
-        push!(recv_reqs, MPI.Isend(buffer, dest, 0, comm))
+        push!(recv_reqs, MPI.Isend(buffer, comm; dest = dest))
     end
 
     # Wait for all the comm to be over
-    MPI.Waitall!(vcat(send_reqs, recv_reqs))
+    MPI.Waitall(vcat(send_reqs, recv_reqs))
     #MPI.Waitall!(recv_reqs)
+
+end
+
+"""
+When building a Matrix from a Vector, it has to be decided who owns the common indices
+"""
+function decide_gid2part(mat_lid2gid, vec_lid2part)
 
 end

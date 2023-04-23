@@ -13,8 +13,8 @@ for (func, commutative) in [:mapreduce => true, :mapfoldl => false, :mapfoldr =>
     @eval function Base.$func(
         f::F,
         op::OP,
-        u::HauntedArray,
-        etc::Vararg{HauntedArray};
+        u::HauntedVector,
+        etc::Vararg{HauntedVector};
         kws...,
     ) where {F,OP}
         foreach(v -> _check_compatible_arrays(u, v), etc)
