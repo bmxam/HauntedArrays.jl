@@ -22,7 +22,7 @@ function build_cache(
     ::AbstractExchanger,
     ::Vector{I},
     ::Vector{Int},
-    _;
+    ::Vector{I};
     kwargs...,
 ) where {I}
     return EmptyCache()
