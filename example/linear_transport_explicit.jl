@@ -10,6 +10,7 @@ const lx = 1.0
 const nx = 3 # on each process
 const c = 1.0
 
+# TODO: use julia 1.9 + `ext` to include this in HauntedArrays
 function DiffEqBase.recursive_length(A::HauntedVector)
     MPI.Allreduce(n_own_rows(A), MPI.SUM, get_comm(A))
 end
