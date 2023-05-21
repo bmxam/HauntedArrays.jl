@@ -5,6 +5,8 @@ abstract type AbstractExchanger end
   - `gid` stands for "global index" or "global identifier", meaning "all ranks merged"
 
 `I` maybe be `CartesianIndex` for N > 1, or `Int` for vectors
+
+TODO : use MPI Graph API (see https://juliaparallel.org/MPI.jl/latest/examples/09-graph_communication/)
 """
 struct MPIExchanger{I} <: AbstractExchanger
     comm::MPI.Comm

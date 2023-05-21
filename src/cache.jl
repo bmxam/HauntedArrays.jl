@@ -6,7 +6,8 @@ function build_cache(
     exchanger::AbstractExchanger,
     lid2gid::Vector{I},
     lid2part::Vector{Int},
-    oid2lid,
+    oid2lid;
+    kwargs...,
 ) where {I<:Integer}
     error("`build_cache` not implemented for $C")
 end
@@ -21,7 +22,8 @@ function build_cache(
     ::AbstractExchanger,
     ::Vector{I},
     ::Vector{Int},
-    _,
+    ::Vector{I};
+    kwargs...,
 ) where {I}
     return EmptyCache()
 end

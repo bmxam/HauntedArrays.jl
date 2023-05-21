@@ -118,7 +118,8 @@ function HauntedArray(
     lid2part::Vector{Int},
     ndims::Int,
     T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache,
+    C::Type{<:AbstractCache} = EmptyCache;
+    kwargs...,
 ) where {I}
     @assert ndims <= 2 "`ndims > 2 is not yet supported"
 
@@ -138,7 +139,8 @@ function HauntedArray(
     oid2lid::Vector{I},
     ndims::Int,
     T = Float64,
-    C::Type{<:AbstractCache} = EmptyCache,
+    C::Type{<:AbstractCache} = EmptyCache;
+    kwargs...,
 ) where {I}
     n = length(lid2gid)
     dims = ntuple(i -> n, ndims)
@@ -150,7 +152,7 @@ function HauntedArray(
         Array{T}(undef, dims)
     end
 
-    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, C)
+    return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, C; kwargs)
 end
 
 function HauntedArray(
@@ -159,10 +161,11 @@ function HauntedArray(
     lid2gid::Vector{I},
     lid2part::Vector{Int},
     oid2lid::Vector{I},
-    C::Type{<:AbstractCache} = EmptyCache,
+    C::Type{<:AbstractCache} = EmptyCache;
+    kwargs...,
 ) where {T,N,I}
     # Build the cache
-    cache = build_cache(C, array, exchanger, lid2gid, lid2part, oid2lid)
+    cache = build_cache(C, array, exchanger, lid2gid, lid2part, oid2lid; kwargs)
 
     return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cache)
 end
@@ -173,8 +176,9 @@ function HauntedVector(
     lid2part::Vector{Int},
     T = Float64;
     cacheType::Type{<:AbstractCache} = EmptyCache,
+    kwargs...,
 ) where {I}
-    HauntedArray(comm, lid2gid, lid2part, 1, T, cacheType)
+    HauntedArray(comm, lid2gid, lid2part, 1, T, cacheType; kwargs)
 end
 
 """
