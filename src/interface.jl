@@ -50,8 +50,42 @@ function Base.zero(A::HauntedArray)
     return B
 end
 
-function Base.view(::HauntedArray, I::Vararg{Any,N}) where {N}
-    error("`view` with I = $I not implemented yet")
+function Base.view(A::HauntedArray, I::Vararg{Any,N}) where {N}
+    error("`view` with I = $I not implemented yet (shape of `A` = $(size(A)))")
+end
+
+function Base.view(A::HauntedArray{T,2}, I::Vararg{Any,2}) where {T}
+    # TODO : optimize + use (or define) a HauntedArrays constructor
+    # instead of copying one...
+
+    (I[2] isa Integer) ||
+        error("`view` with I = $I not implemented yet (shape of `A` = $(size(A)))")
+
+    comm = get_comm(A)
+
+    # THIS IS EXPERIMENTAL
+    @only_root println("WARNING : `view` for matrix is experimental (and not optimized)") comm
+
+    rows = I[1]
+
+
+    lid2gid = local_to_global(A)[rows]
+    lid2part = local_to_part(A)[rows]
+    cacheType = typeof(get_cache(A))
+
+    exchanger = MPIExchanger(comm, lid2gid, lid2part)
+
+    mypart = MPI.Comm_rank(comm) + 1
+    oid2lid = findall(part -> part == mypart, lid2part)
+
+    return HauntedArray(
+        view(parent(A), I...),
+        exchanger,
+        lid2gid,
+        lid2part,
+        oid2lid,
+        cacheType,
+    )
 end
 
 function Base.view(A::HauntedVector, I::AbstractVector)
@@ -62,6 +96,7 @@ function Base.view(A::HauntedVector, I::AbstractVector)
     cacheType = typeof(get_cache(A))
 
     # Build new oid2lid
+    # Rq: why not just `oid2lid = findall(part -> part == mypart, lid2part)` ??
     old_li_to_old_oi = zero(local_to_global(A))
     for (oi, li) in enumerate(own_to_local(A))
         old_li_to_old_oi[li] = oi
