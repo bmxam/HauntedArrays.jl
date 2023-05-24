@@ -54,38 +54,12 @@ function Base.view(A::HauntedArray, I::Vararg{Any,N}) where {N}
     error("`view` with I = $I not implemented yet (shape of `A` = $(size(A)))")
 end
 
-function Base.view(A::HauntedArray{T,2}, I::Vararg{Any,2}) where {T}
-    # TODO : optimize + use (or define) a HauntedArrays constructor
-    # instead of copying one...
-
-    (I[2] isa Integer) ||
-        error("`view` with I = $I not implemented yet (shape of `A` = $(size(A)))")
-
-    comm = get_comm(A)
-
-    # THIS IS EXPERIMENTAL
-    @only_root println("WARNING : `view` for matrix is experimental (and not optimized)") comm
-
-    rows = I[1]
-
-
-    lid2gid = local_to_global(A)[rows]
-    lid2part = local_to_part(A)[rows]
-    cacheType = typeof(get_cache(A))
-
-    exchanger = MPIExchanger(comm, lid2gid, lid2part)
-
-    mypart = MPI.Comm_rank(comm) + 1
-    oid2lid = findall(part -> part == mypart, lid2part)
-
-    return HauntedArray(
-        view(parent(A), I...),
-        exchanger,
-        lid2gid,
-        lid2part,
-        oid2lid,
-        cacheType,
-    )
+function Base.view(A::HauntedMatrix, I::Vararg{Any,2})
+    # A `view` on a HauntedMatrix can lead to dead-lock, because it may not
+    # be collective. If the view is not intented to be used collectively, the
+    # present implementation is ok, otherwise it is wrong.
+    @warn "`view` for HauntedMatrix is a hack, use it only if you know what you're doing."
+    return view(parent(A), I...)
 end
 
 function Base.view(A::HauntedVector, I::AbstractVector)

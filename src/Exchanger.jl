@@ -161,6 +161,12 @@ function filtered_exchanger(exchanger::MPIExchanger{I}, lids) where {I}
     return MPIExchanger(get_comm(exchanger), tobesent_part2lid, toberecv_part2lid)
 end
 
+# This exchanger does not perform any exchange, but can help debugging
+struct DummyExchanger <: AbstractExchanger
+    comm::MPI.Comm
+end
+@inline get_comm(exchanger::DummyExchanger) = exchanger.comm
+
 # """
 # Build a "Matrix" exchanger from a "Vector" exchanger
 # """
