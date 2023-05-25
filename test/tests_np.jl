@@ -36,9 +36,6 @@ feSpace = Bcube.SingleFESpace(fSpace, parent(dmesh))
 lid2gid, lid2part =
     BcubeParallel.compute_dof_global_numbering(Bcube._get_dhl(feSpace), dmesh)
 
-# @one_at_a_time display(lid2gid)
-# @one_at_a_time display(lid2part)
-
 function test_gather_np()
     # Vector
     Al = HauntedVector(comm, lid2gid, lid2part)
@@ -77,7 +74,6 @@ test_ldiv_np() = error("ldiv not implemented yet")
 
 function test_mul_np()
     α = 100.0
-    # error("there is an error in the product (and most likely in the gather)")
 
     xl = HauntedVector(comm, lid2gid, lid2part)
     nl = n_local_rows(xl)
@@ -96,24 +92,12 @@ function test_mul_np()
     @only_root begin
         _Ag = zeros(ng, ng)
         _Ag[l2g] .= __Ag[l2g]
-        # display(_Ag)
     end
 
-
-    Ag = gather(Al) # for debug
-    xg = gather(xl) # for debug
-    bl = Al * xl # for debug
     bg = gather(Al * xl)
-
-    # @one_at_a_time display(Al)
-    # @one_at_a_time display(xl)
-    # @one_at_a_time display(bl)
 
     @only_root begin
         _bg = _Ag * _xg
-        # display(bg)
-        # display(_bg)
-        # display(Ag * xg)
 
         for rtol in [1e-20 * 10^n for n = 0:10]
             @show rtol, all(isapprox.(_bg, bg; rtol = rtol))
