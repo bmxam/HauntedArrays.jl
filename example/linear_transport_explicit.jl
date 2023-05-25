@@ -26,9 +26,6 @@ mypart = rank + 1
 
 lid2gid, lid2part = HauntedArrays.generate_1d_partitioning(nx, mypart, np)
 
-@one_at_a_time @show lid2gid
-@one_at_a_time @show lid2part
-
 # Allocate
 q = HauntedVector(comm, lid2gid, lid2part)
 dq = similar(q)
