@@ -1,3 +1,7 @@
+# Temporary
+COUNT_WARNING_FOR_VIEW = 0
+
+
 Base.parent(A::HauntedArray) = A.array
 
 Base.size(A::HauntedArray) = size(parent(A))
@@ -58,7 +62,10 @@ function Base.view(A::HauntedMatrix, I::Vararg{Any,2})
     # A `view` on a HauntedMatrix can lead to dead-lock, because it may not
     # be collective. If the view is not intented to be used collectively, the
     # present implementation is ok, otherwise it is wrong.
-    @warn "`view` for HauntedMatrix is a hack, use it only if you know what you're doing."
+    if COUNT_WARNING_FOR_VIEW == 0
+        global COUNT_WARNING_FOR_VIEW += 1
+        @warn "`view` for HauntedMatrix is a hack, use it only if you know what you're doing."
+    end
     return view(parent(A), I...)
 end
 
