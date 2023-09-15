@@ -89,5 +89,6 @@ function Base.view(A::HauntedVector, I::AbstractVector)
     return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cacheType)
 end
 
-# Usefull in case of wrapped sparse matrix
+# Usefull in case of wrapped sparse matrix. Maybe it would more clever to specialize
+# directly Base.eachindex?
 Base.fill!(A::HauntedArray, x) = fill!(parent(A), x)
