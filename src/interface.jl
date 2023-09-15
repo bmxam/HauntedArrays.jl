@@ -88,3 +88,6 @@ function Base.view(A::HauntedVector, I::AbstractVector)
 
     return HauntedArray(array, exchanger, lid2gid, lid2part, oid2lid, cacheType)
 end
+
+# Usefull in case of wrapped sparse matrix
+Base.fill!(A::HauntedArray, x) = fill!(parent(A), x)
