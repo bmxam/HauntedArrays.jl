@@ -91,4 +91,7 @@ end
 
 # Usefull in case of wrapped sparse matrix. Maybe it would more clever to specialize
 # directly Base.eachindex?
-Base.fill!(A::HauntedArray, x) = fill!(parent(A), x)
+function Base.fill!(A::HauntedArray, x)
+    fill!(parent(A), x)
+    return A
+end
