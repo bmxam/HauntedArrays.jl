@@ -24,7 +24,8 @@ export HauntedArray,
     local_to_global,
     local_to_part,
     n_local_rows,
-    n_own_rows
+    n_own_rows,
+    set_owned_values
 
 include("./interface.jl")
 include("./collective.jl")

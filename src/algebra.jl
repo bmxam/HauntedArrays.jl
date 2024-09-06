@@ -23,6 +23,14 @@ function LinearAlgebra.mul!(
     C
 end
 
+function LinearAlgebra.norm2(A::HauntedVector)
+    # MPI.Allreduce(LinearAlgebra.norm2(owned_values(A)), +, get_comm(A))
+    √(mapreduce(abs2, +, A))
+end
+function LinearAlgebra.dot(A::HauntedVector, B::HauntedVector)
+    MPI.Allreduce(LinearAlgebra.dot(owned_values(A), owned_values(B)), +, get_comm(A))
+end
+
 for f in (:+, :-)
     @eval function (Base.$f)(A::HauntedArray, B::HauntedArray)
         _C = $f(parent(A), parent(B))

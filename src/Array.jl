@@ -98,6 +98,8 @@ Build a view of the parent array, with the elements that are owned by the curren
 """
 @inline owned_values(A::HauntedArray) = view(parent(A), _own_to_local_ndims(A)...)
 
+@inline set_owned_values(A::HauntedArray, B::AbstractArray) = owned_values(A) .= B
+
 """
 Transform a `Vector` index into a Vector of nd-CartesianIndices
 (assuming same length in all Array direction)
